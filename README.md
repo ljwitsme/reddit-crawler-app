@@ -16,6 +16,7 @@ A web application that crawls Reddit submissions and comments, stores them in My
 - [Step to Run Codes Locally](#step-to-run-codes-locally)
 - [Usage](#usage)
 - [Database Schema](#database-schema)
+- [Analytics Proof of Concept](#analytics-proof-of-concept)
 - [Use of AI Tools](#use-of-ai-tools)
 - [Tech Stack](#tech-stack)
 
@@ -38,6 +39,13 @@ A web application that crawls Reddit submissions and comments, stores them in My
 
 ### Bonus Objective 2
 - Written discussion of analytical approaches in [`docs/analytics.md`](docs/analytics.md)
+- Working proof-of-concept implementations in [`docs/analytics_poc/`](docs/analytics_poc/)
+
+### UX Polish
+- Sortable list (newest, most upvotes, most comments)
+- Paginated submissions view (10 per page)
+- Breadcrumb navigation across detail pages
+- Empty states, loading spinners, and clear error messages
 
 ---
 
@@ -48,18 +56,30 @@ reddit-crawler-app/
 ├── .env.example
 ├── requirements.txt
 ├── run.py
+├── README.md
 ├── backend/
 │   ├── config.py
 │   ├── database.py
-│   ├── api/         (routes + schemas)
-│   ├── crawler/     (PRAW client, URL parser, mock + real crawler)
-│   ├── db/          (SQLAlchemy models)
-│   └── utils/       (timezone conversion)
+│   ├── api/             (FastAPI routes + Pydantic schemas)
+│   ├── crawler/         (PRAW client, URL parser, mock + real crawler)
+│   ├── db/              (SQLAlchemy models)
+│   └── utils/           (UTC ↔ SGT conversion)
 ├── database/
 │   └── schema.sql
 ├── docs/
-│   └── analytics.md
-└── frontend/        (HTML, CSS, JS pages)
+│   ├── analytics.md            (Bonus 2 write-up)
+│   └── analytics_poc/          (Standalone analytics scripts)
+│       ├── requirements.txt
+│       ├── analyze.py
+│       └── output/             (Generated PNG visualisations)
+└── frontend/
+    ├── index.html
+    ├── submission.html
+    ├── author.html
+    ├── subreddit.html
+    ├── favicon.svg
+    ├── css/
+    └── js/
 ```
 
 ---
@@ -69,7 +89,7 @@ reddit-crawler-app/
 ### Prerequisites
 - Python 3.11+
 - MySQL Server 8.0+
-- Reddit account with verified email (for API credentials)
+- Reddit account with verified email (for API credentials, if running in live mode)
 
 ### MySQL Setup
 In MySQL Workbench, run as root:
@@ -82,6 +102,8 @@ FLUSH PRIVILEGES;
 ```
 
 ### Reddit API Credentials
+*Only needed if `USE_MOCK=false`. The system works fully in mock mode without Reddit credentials.*
+
 1. Go to <https://www.reddit.com/prefs/apps>
 2. Click **create another app**, choose type **script**
 3. Set redirect URI to `http://localhost:8000`
@@ -131,6 +153,8 @@ The application will be available at:
 | Batch crawl 50 posts | Type a subreddit name into the second form, click Crawl 50 posts |
 | View author history | Click any username, then "Refresh from Reddit" |
 | View subreddit submissions | Click any `r/subreddit` link |
+| Sort submissions | Use the dropdown in the "Crawled submissions" panel |
+| Navigate pages | Use the page buttons below the submissions list |
 
 ---
 
@@ -139,6 +163,26 @@ The application will be available at:
 Three tables: `submissions`, `comments`, `authors`. Reddit IDs are used as primary keys to support idempotent upserts. Timestamps are stored as UTC and converted to SGT at the display layer.
 
 Full schema: [`database/schema.sql`](database/schema.sql).
+
+---
+
+## Analytics Proof of Concept
+
+A standalone Python script in [`docs/analytics_poc/`](docs/analytics_poc/) demonstrates four of the analytical approaches discussed in `docs/analytics.md`, using real data from the crawler database:
+
+- Sentiment classification (VADER)
+- Word cloud of dominant terms
+- Activity heatmap (hour × day-of-week, SGT)
+- Top authors and top subreddits
+
+To run it (from the project root):
+
+```bash
+pip install -r docs/analytics_poc/requirements.txt
+python docs/analytics_poc/analyze.py
+```
+
+PNG visualisations are written to `docs/analytics_poc/output/`.
 
 ---
 
@@ -169,6 +213,11 @@ In line with Section 6 of the brief, AI assistants (Claude) were used for boiler
 #### API Integration
 - [![Reddit](https://img.shields.io/badge/Reddit%20API-FF4500.svg?style=for-the-badge&logo=Reddit&logoColor=white)](https://www.reddit.com/dev/api/)
 - [![PRAW](https://img.shields.io/badge/PRAW-FF4500.svg?style=for-the-badge&logo=Reddit&logoColor=white)](https://praw.readthedocs.io/)
+
+#### Analytics (POC)
+- [![VADER](https://img.shields.io/badge/VADER%20Sentiment-FF6B6B.svg?style=for-the-badge&logo=python&logoColor=white)](https://github.com/cjhutto/vaderSentiment)
+- [![Matplotlib](https://img.shields.io/badge/Matplotlib-11557C.svg?style=for-the-badge&logo=python&logoColor=white)](https://matplotlib.org/)
+- [![WordCloud](https://img.shields.io/badge/WordCloud-4B8BBE.svg?style=for-the-badge&logo=python&logoColor=white)](https://github.com/amueller/word_cloud)
 
 <br><br>
 

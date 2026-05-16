@@ -109,12 +109,11 @@ def list_submissions(
     if subreddit:
         q = q.filter(Submission.subreddit == subreddit)
 
-    # Sort options
     if sort == "upvotes":
         q = q.order_by(Submission.score.desc())
     elif sort == "comments":
         q = q.order_by(Submission.num_comments.desc())
-    else:  # default = newest
+    else:
         q = q.order_by(Submission.crawled_at.desc())
 
     total = q.count()
@@ -216,7 +215,7 @@ def get_stats(db: Session = Depends(get_db)):
         "comments": total_comments or 0,
         "subreddits": subreddits or 0,
         "unique_authors": authors or 0,
-        "mode": "mock" if settings.USE_MOCK else "live",
+        "mode": "offline" if settings.USE_MOCK else "live",
     }
 
 

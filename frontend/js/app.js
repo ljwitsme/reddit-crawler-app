@@ -31,7 +31,7 @@ loadSubmissions(1);
 async function crawl() {
   const url = urlInput.value.trim();
   if (!url) return;
-  setStatus(statusEl, '<span class="spinner"></span>Crawling...');
+  setStatus(statusEl, '<span class="spinner"></span>Crawling (large threads can take 30–60 seconds)...');
   crawlBtn.disabled = true;
   try {
     const res = await fetch('/api/crawl', {
@@ -57,7 +57,7 @@ async function crawl() {
 async function crawlSubreddit() {
   const subreddit = subInput.value.trim();
   if (!subreddit) return;
-  setStatus(subStatusEl, '<span class="spinner"></span>Crawling 50 posts...');
+  setStatus(subStatusEl, '<span class="spinner"></span>Crawling 50 posts (this takes 1–3 minutes)...');
   subBtn.disabled = true;
   try {
     const res = await fetch('/api/crawl-subreddit', {

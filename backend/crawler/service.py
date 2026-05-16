@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 import random
+import re
 from sqlalchemy.orm import Session
 
 from backend.config import settings
@@ -45,7 +46,9 @@ def _update_author_record(db: Session, username: str, count: int) -> None:
 
 
 # ===========================================================
-# Mock implementations
+# Offline (sample data) implementations
+# Used when USE_MOCK=true in .env. Allows the system to run end-to-end
+# without Reddit API access.
 # ===========================================================
 
 def _mock_crawl_submission(url: str, db: Session) -> Submission:
@@ -63,12 +66,16 @@ def _mock_submission(db: Session, submission_id: str, url: str) -> Submission:
         row = Submission(id=submission_id)
         db.add(row)
 
-    row.title = "[MOCK] Sample post about housing policy in Singapore"
-    row.author = "mock_user_alice"
-    row.subreddit = "singapore"
+    # Parse the subreddit from the URL, fall back to "test"
+    match = re.search(r"/r/([^/]+)/", url)
+    subreddit = match.group(1) if match else "test"
+
+    row.title = f"Sample post in r/{subreddit} (offline mode)"
+    row.author = "sample_user_alice"
+    row.subreddit = subreddit
     row.selftext = (
-        "This is fake selftext for testing the UI and database layer "
-        "while Reddit API access is pending."
+        "Sample post body generated in offline mode. "
+        "Run with USE_MOCK=false in .env to crawl real Reddit data."
     )
     row.url = url
     row.score = 142
@@ -79,11 +86,11 @@ def _mock_submission(db: Session, submission_id: str, url: str) -> Submission:
 
 
 def _mock_comments(db: Session, submission_id: str) -> None:
-    mock_bodies = [
-        "This is a really interesting point about MOP rules.",
+    sample_bodies = [
+        "This is a really interesting point about the policy.",
         "I disagree — the policy hasn't been updated since 2018.",
         "Source? Last I checked it was 5 years not 10.",
-        "Agreed. Here's the HDB link with the official timeline.",
+        "Agreed. Here's the official link with the timeline.",
         "Lol classic Reddit comment debating semantics.",
         "[deleted]",
         "Thanks for sharing this, I had no idea.",
@@ -91,14 +98,14 @@ def _mock_comments(db: Session, submission_id: str) -> None:
     ]
 
     comments_to_create = [
-        ("c001", None, "alice_sg", mock_bodies[0], 25, False),
-        ("c002", "c001", "bob_tan", mock_bodies[1], 12, False),
-        ("c003", "c002", "alice_sg", mock_bodies[2], 8, False),
-        ("c004", "c002", "charlie_lim", mock_bodies[3], 15, False),
-        ("c005", None, "dana_wong", mock_bodies[4], 18, False),
+        ("c001", None, "alice_sg", sample_bodies[0], 25, False),
+        ("c002", "c001", "bob_tan", sample_bodies[1], 12, False),
+        ("c003", "c002", "alice_sg", sample_bodies[2], 8, False),
+        ("c004", "c002", "charlie_lim", sample_bodies[3], 15, False),
+        ("c005", None, "dana_wong", sample_bodies[4], 18, False),
         ("c006", "c005", None, "[deleted]", -2, True),
-        ("c007", None, "bob_tan", mock_bodies[6], 7, False),
-        ("c008", "c007", "alice_sg", mock_bodies[7], 3, False),
+        ("c007", None, "bob_tan", sample_bodies[6], 7, False),
+        ("c008", "c007", "alice_sg", sample_bodies[7], 3, False),
     ]
 
     for suffix, parent_suffix, author, body, score, is_deleted in comments_to_create:
@@ -117,12 +124,12 @@ def _mock_comments(db: Session, submission_id: str) -> None:
         row.score = score
         row.created_utc = datetime.utcnow() - timedelta(hours=random.randint(1, 48))
         row.is_deleted = is_deleted
-        row.submission_title = "[MOCK] Sample post about housing policy in Singapore"
-        row.submission_subreddit = "singapore"
+        row.submission_title = f"Sample post (offline mode)"
+        row.submission_subreddit = "offline"
 
 
 def _mock_crawl_subreddit_batch(subreddit: str, limit: int, db: Session) -> list[Submission]:
-    mock_titles = [
+    sample_titles = [
         "Discussion: New transport policy effects",
         "Anyone else noticed price hikes at NTUC?",
         "Best hawker centres in CBD area",
@@ -134,32 +141,32 @@ def _mock_crawl_subreddit_batch(subreddit: str, limit: int, db: Session) -> list
         "Singapore food scene is changing fast",
         "Honest review of the new shopping mall",
     ]
-    mock_authors_pool = [
+    sample_authors_pool = [
         "alice_sg", "bob_tan", "charlie_lim", "dana_wong", "evan_lee",
         "fiona_ng", "grace_teo", "henry_koh", "ivan_yeo", "jane_low",
     ]
 
     created = []
     for i in range(limit):
-        sub_id = f"mock_{subreddit}_{i:03d}"
+        sub_id = f"offline_{subreddit}_{i:03d}"
         row = db.get(Submission, sub_id)
         if row is None:
             row = Submission(id=sub_id)
             db.add(row)
 
-        title = f"[MOCK] {random.choice(mock_titles)} (#{i+1})"
+        title = f"{random.choice(sample_titles)} (#{i+1})"
         row.title = title
-        row.author = random.choice(mock_authors_pool)
+        row.author = random.choice(sample_authors_pool)
         row.subreddit = subreddit
-        row.selftext = "Mock submission body for subreddit expansion testing."
-        row.url = f"https://www.reddit.com/r/{subreddit}/comments/{sub_id}/mock/"
+        row.selftext = "Sample submission body for offline-mode testing."
+        row.url = f"https://www.reddit.com/r/{subreddit}/comments/{sub_id}/sample/"
         row.score = random.randint(5, 500)
         row.num_comments = random.randint(0, 50)
         row.created_utc = datetime.utcnow() - timedelta(days=random.randint(1, 30))
         row.crawled_at = datetime.utcnow()
         created.append(row)
 
-        _mock_few_comments(db, sub_id, title, subreddit, mock_authors_pool)
+        _mock_few_comments(db, sub_id, title, subreddit, sample_authors_pool)
 
     db.commit()
     for r in created:

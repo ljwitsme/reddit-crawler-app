@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Author — Reddit Crawler</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-logo">R</div>
+        <div>
+          <div class="brand-name">Reddit Crawler</div>
+          <div class="brand-sub">Intel Dashboard</div>
+        </div>
+      </div>
+      <div class="nav-section">Navigation</div>
+      <a href="/" class="nav-item">
+        <span class="nav-icon">◆</span> Dashboard
+      </a>
+      <div class="sidebar-footer">
+        <div>Reddit Crawler v0.2</div>
+        <div>Built for MHA ISD assignment</div>
+      </div>
+    </aside>
+    <main class="main">
+      <div class="breadcrumb">
+        <a href="/">Dashboard</a><span class="sep">/</span><span>Author</span><span class="sep">/</span><span id="crumb-name">–</span>
+      </div>
+      <div class="page-header">
+        <div>
+          <h1 class="page-title" id="author-name">Author</h1>
+          <p class="page-subtitle">All comments by this author, across subreddits.</p>
+        </div>
+      </div>
+      <div id="content"><div class="loading"><span class="spinner"></span>Loading...</div></div>
+    </main>
+  </div>
+  <script src="/static/js/author.js"></script>
+</body>
+</html>

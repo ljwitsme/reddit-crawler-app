@@ -9,36 +9,30 @@
   <link rel="stylesheet" href="/static/css/styles.css">
 </head>
 <body>
-  <div class="app">
-    <aside class="sidebar">
-      <div class="brand">
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a href="/" class="brand">
         <div class="brand-logo">R</div>
-        <div>
+        <div class="brand-text">
           <div class="brand-name">Reddit Crawler</div>
           <div class="brand-sub">Intel Dashboard</div>
         </div>
-      </div>
-      <div class="nav-section">Navigation</div>
-      <a href="/" class="nav-item">
-        <span class="nav-icon">◆</span> Dashboard
       </a>
-      <div class="sidebar-footer">
-        <div>Reddit Crawler v0.2</div>
-        <div>Built for MHA ISD assignment</div>
+      <div class="topbar-meta">Built for MHA ISD assignment</div>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="breadcrumb">
+      <a href="/">Dashboard</a><span class="sep">/</span><span>Submission</span>
+    </div>
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Submission details</h1>
       </div>
-    </aside>
-    <main class="main">
-      <div class="breadcrumb">
-        <a href="/">Dashboard</a><span class="sep">/</span><span>Submission</span>
-      </div>
-      <div class="page-header">
-        <div>
-          <h1 class="page-title">Submission details</h1>
-        </div>
-      </div>
-      <div id="result"><div class="loading"><span class="spinner"></span>Loading...</div></div>
-    </main>
-  </div>
+    </div>
+    <div id="result"><div class="loading"><span class="spinner"></span>Loading...</div></div>
+  </main>
   <script src="/static/js/submission.js"></script>
 </body>
 </html>

@@ -7,7 +7,7 @@ from backend.database import Base
 class Submission(Base):
     __tablename__ = "submissions"
 
-    id = Column(String(20), primary_key=True)
+    id = Column(String(50), primary_key=True)
     title = Column(Text, nullable=False)
     author = Column(String(255), nullable=True)
     subreddit = Column(String(255), nullable=False, index=True)
@@ -28,7 +28,7 @@ class Submission(Base):
 class Comment(Base):
     __tablename__ = "comments"
 
-    id = Column(String(20), primary_key=True)
+    id = Column(String(50), primary_key=True)
     submission_id = Column(String(20), ForeignKey("submissions.id"), nullable=False, index=True)
     parent_id = Column(String(20), nullable=True, index=True)
     author = Column(String(255), nullable=True, index=True)
@@ -36,9 +36,21 @@ class Comment(Base):
     score = Column(Integer, default=0)
     created_utc = Column(DateTime, nullable=False)
     is_deleted = Column(Boolean, default=False)
+    # Optional: for author-history comments fetched outside of a known submission,
+    # we still store them here with submission_id = a synthetic external ID.
+    submission_title = Column(Text, nullable=True)
+    submission_subreddit = Column(String(255), nullable=True)
 
     submission = relationship("Submission", back_populates="comments")
 
     __table_args__ = (
         Index("ix_comments_submission_parent", "submission_id", "parent_id"),
     )
+
+
+class Author(Base):
+    __tablename__ = "authors"
+
+    username = Column(String(255), primary_key=True)
+    last_fetched_at = Column(DateTime, nullable=True)
+    total_comments_fetched = Column(Integer, default=0)

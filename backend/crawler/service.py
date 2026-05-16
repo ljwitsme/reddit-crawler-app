@@ -2,14 +2,53 @@ from datetime import datetime, timedelta
 import random
 from sqlalchemy.orm import Session
 
-from backend.db.models import Submission, Comment
+from backend.config import settings
+from backend.db.models import Submission, Comment, Author
 from backend.crawler.url_parser import extract_submission_id
 
 
-# ---------- Single submission mock crawler ----------
+# ===========================================================
+# Public API — what routes.py calls
+# ===========================================================
 
 def crawl_submission(url: str, db: Session) -> Submission:
-    """MOCK crawler: generates fake submission + comments for UI/DB testing."""
+    if settings.USE_MOCK:
+        return _mock_crawl_submission(url, db)
+    from backend.crawler.real_crawler import crawl_submission_real
+    return crawl_submission_real(url, db)
+
+
+def crawl_subreddit_batch(subreddit: str, limit: int, db: Session) -> list[Submission]:
+    if settings.USE_MOCK:
+        return _mock_crawl_subreddit_batch(subreddit, limit, db)
+    from backend.crawler.real_crawler import crawl_subreddit_batch_real
+    return crawl_subreddit_batch_real(subreddit, limit, db)
+
+
+def fetch_author_history(username: str, db: Session, limit: int = 100) -> int:
+    if settings.USE_MOCK:
+        return _mock_fetch_author_history(username, db, limit)
+    from backend.crawler.real_crawler import crawl_author_history_real
+    count = crawl_author_history_real(username, db, limit)
+    _update_author_record(db, username, count)
+    return count
+
+
+def _update_author_record(db: Session, username: str, count: int) -> None:
+    author = db.get(Author, username)
+    if author is None:
+        author = Author(username=username)
+        db.add(author)
+    author.last_fetched_at = datetime.utcnow()
+    author.total_comments_fetched = count
+    db.commit()
+
+
+# ===========================================================
+# Mock implementations
+# ===========================================================
+
+def _mock_crawl_submission(url: str, db: Session) -> Submission:
     submission_id = extract_submission_id(url)
     sub_row = _mock_submission(db, submission_id, url)
     _mock_comments(db, submission_id)
@@ -24,7 +63,7 @@ def _mock_submission(db: Session, submission_id: str, url: str) -> Submission:
         row = Submission(id=submission_id)
         db.add(row)
 
-    row.title = f"[MOCK] Sample post about housing policy in Singapore"
+    row.title = "[MOCK] Sample post about housing policy in Singapore"
     row.author = "mock_user_alice"
     row.subreddit = "singapore"
     row.selftext = (
@@ -52,7 +91,6 @@ def _mock_comments(db: Session, submission_id: str) -> None:
     ]
 
     comments_to_create = [
-        # (suffix, parent_suffix, author, body, score, is_deleted)
         ("c001", None, "alice_sg", mock_bodies[0], 25, False),
         ("c002", "c001", "bob_tan", mock_bodies[1], 12, False),
         ("c003", "c002", "alice_sg", mock_bodies[2], 8, False),
@@ -64,7 +102,6 @@ def _mock_comments(db: Session, submission_id: str) -> None:
     ]
 
     for suffix, parent_suffix, author, body, score, is_deleted in comments_to_create:
-        # Make comment IDs unique per submission by prefixing
         cid = f"{submission_id}_{suffix}"
         pid = f"{submission_id}_{parent_suffix}" if parent_suffix else None
 
@@ -80,12 +117,11 @@ def _mock_comments(db: Session, submission_id: str) -> None:
         row.score = score
         row.created_utc = datetime.utcnow() - timedelta(hours=random.randint(1, 48))
         row.is_deleted = is_deleted
+        row.submission_title = "[MOCK] Sample post about housing policy in Singapore"
+        row.submission_subreddit = "singapore"
 
 
-# ---------- Bonus 1a: Subreddit expansion mock ----------
-
-def crawl_subreddit_batch(subreddit: str, limit: int, db: Session) -> list[Submission]:
-    """MOCK: generate `limit` fake submissions for the given subreddit."""
+def _mock_crawl_subreddit_batch(subreddit: str, limit: int, db: Session) -> list[Submission]:
     mock_titles = [
         "Discussion: New transport policy effects",
         "Anyone else noticed price hikes at NTUC?",
@@ -111,7 +147,8 @@ def crawl_subreddit_batch(subreddit: str, limit: int, db: Session) -> list[Submi
             row = Submission(id=sub_id)
             db.add(row)
 
-        row.title = f"[MOCK] {random.choice(mock_titles)} (#{i+1})"
+        title = f"[MOCK] {random.choice(mock_titles)} (#{i+1})"
+        row.title = title
         row.author = random.choice(mock_authors_pool)
         row.subreddit = subreddit
         row.selftext = "Mock submission body for subreddit expansion testing."
@@ -122,8 +159,7 @@ def crawl_subreddit_batch(subreddit: str, limit: int, db: Session) -> list[Submi
         row.crawled_at = datetime.utcnow()
         created.append(row)
 
-        # Add a few mock comments per submission
-        _mock_few_comments(db, sub_id, mock_authors_pool, subreddit)
+        _mock_few_comments(db, sub_id, title, subreddit, mock_authors_pool)
 
     db.commit()
     for r in created:
@@ -131,8 +167,7 @@ def crawl_subreddit_batch(subreddit: str, limit: int, db: Session) -> list[Submi
     return created
 
 
-def _mock_few_comments(db: Session, submission_id: str, authors: list[str], subreddit: str) -> None:
-    """Add 3-5 mock comments to a submission (for subreddit expansion)."""
+def _mock_few_comments(db: Session, submission_id: str, title: str, subreddit: str, authors: list[str]) -> None:
     bodies = [
         "Great post, thanks for sharing.",
         "I had a similar experience last month.",
@@ -154,3 +189,63 @@ def _mock_few_comments(db: Session, submission_id: str, authors: list[str], subr
         row.score = random.randint(1, 50)
         row.created_utc = datetime.utcnow() - timedelta(hours=random.randint(1, 100))
         row.is_deleted = False
+        row.submission_title = title
+        row.submission_subreddit = subreddit
+
+
+def _mock_fetch_author_history(username: str, db: Session, limit: int) -> int:
+    other_subreddits = [
+        "AskReddit", "worldnews", "technology", "personalfinance",
+        "MapPorn", "books", "movies", "AskHistorians",
+    ]
+    bodies = [
+        "I lived through this. Here's my take...",
+        "Citation needed but interesting if true.",
+        "Same thing happened in 2019.",
+        "Strongly disagree, here's why.",
+        "TIL — never knew this.",
+        "OP's analysis is spot on.",
+        "Anyone got a primary source?",
+    ]
+
+    count = 0
+    for i in range(min(limit, 15)):
+        cid = f"ext_{username}_{i:03d}"
+        sub_id = f"ext_sub_{username}_{i:03d}"
+        chosen_sub = random.choice(other_subreddits)
+        chosen_title = f"External submission #{i+1} on {chosen_sub}"
+
+        sub_row = db.get(Submission, sub_id)
+        if sub_row is None:
+            sub_row = Submission(
+                id=sub_id,
+                title=chosen_title,
+                author="some_other_user",
+                subreddit=chosen_sub,
+                selftext=None,
+                url=f"https://www.reddit.com/r/{chosen_sub}/comments/{sub_id}/",
+                score=random.randint(10, 5000),
+                num_comments=random.randint(5, 500),
+                created_utc=datetime.utcnow() - timedelta(days=random.randint(5, 90)),
+                crawled_at=datetime.utcnow(),
+            )
+            db.add(sub_row)
+
+        row = db.get(Comment, cid)
+        if row is None:
+            row = Comment(id=cid)
+            db.add(row)
+
+        row.submission_id = sub_id
+        row.parent_id = None
+        row.author = username
+        row.body = random.choice(bodies)
+        row.score = random.randint(1, 200)
+        row.created_utc = datetime.utcnow() - timedelta(days=random.randint(1, 60))
+        row.is_deleted = False
+        row.submission_title = chosen_title
+        row.submission_subreddit = chosen_sub
+        count += 1
+
+    _update_author_record(db, username, count)
+    return count

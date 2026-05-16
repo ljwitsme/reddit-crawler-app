@@ -36,8 +36,6 @@ class SubmissionSummary(BaseModel):
 
 
 class CommentWithContext(BaseModel):
-    """A comment plus info about the submission it belongs to.
-    Used for author history pages."""
     id: str
     body: Optional[str]
     score: int
@@ -52,6 +50,7 @@ class AuthorOut(BaseModel):
     username: str
     total_comments: int
     subreddits: List[str]
+    last_fetched_at: Optional[str]
     comments: List[CommentWithContext]
 
 

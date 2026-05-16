@@ -6,8 +6,13 @@ from sqlalchemy import func
 from prawcore.exceptions import NotFound, Forbidden, ResponseException
 
 from backend.database import engine, Base, get_db
-from backend.db.models import Submission, Comment
-from backend.crawler.service import crawl_submission, crawl_subreddit_batch
+from backend.config import settings
+from backend.db.models import Submission, Comment, Author
+from backend.crawler.service import (
+    crawl_submission,
+    crawl_subreddit_batch,
+    fetch_author_history,
+)
 from backend.utils.timezone import utc_to_sgt_iso
 from backend.api.schemas import (
     CrawlRequest,
@@ -21,7 +26,7 @@ from backend.api.schemas import (
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Reddit Crawler", version="0.2.0")
+app = FastAPI(title="Reddit Crawler", version="0.3.0")
 
 
 def _serialize_submission(sub: Submission) -> SubmissionOut:
@@ -87,33 +92,79 @@ def get_submission(submission_id: str, db: Session = Depends(get_db)):
     return _serialize_submission(sub)
 
 
-@app.get("/api/submissions", response_model=list[SubmissionSummary])
+@app.get("/api/submissions")
 def list_submissions(
     subreddit: str | None = None,
+    page: int = 1,
+    page_size: int = 10,
+    sort: str = "newest",
     db: Session = Depends(get_db),
 ):
+    if page < 1:
+        page = 1
+    if page_size < 1 or page_size > 100:
+        page_size = 10
+
     q = db.query(Submission)
     if subreddit:
         q = q.filter(Submission.subreddit == subreddit)
-    subs = q.order_by(Submission.crawled_at.desc()).all()
-    return [_serialize_summary(s) for s in subs]
+
+    # Sort options
+    if sort == "upvotes":
+        q = q.order_by(Submission.score.desc())
+    elif sort == "comments":
+        q = q.order_by(Submission.num_comments.desc())
+    else:  # default = newest
+        q = q.order_by(Submission.crawled_at.desc())
+
+    total = q.count()
+    subs = q.offset((page - 1) * page_size).limit(page_size).all()
+
+    return {
+        "items": [_serialize_summary(s).model_dump() for s in subs],
+        "page": page,
+        "page_size": page_size,
+        "total": total,
+        "total_pages": (total + page_size - 1) // page_size,
+        "sort": sort,
+    }
 
 
-# ---------- Bonus 1a: subreddit batch crawl ----------
+# ---------- Bonus 1a: subreddit batch ----------
 
 @app.post("/api/crawl-subreddit", response_model=list[SubmissionSummary])
 def crawl_subreddit(req: SubredditCrawlRequest, db: Session = Depends(get_db)):
     if req.limit < 1 or req.limit > 100:
         raise HTTPException(status_code=400, detail="limit must be between 1 and 100")
-    subs = crawl_subreddit_batch(req.subreddit, req.limit, db)
+    try:
+        subs = crawl_subreddit_batch(req.subreddit, req.limit, db)
+    except NotFound:
+        raise HTTPException(status_code=404, detail="Subreddit not found")
+    except Forbidden:
+        raise HTTPException(status_code=403, detail="Subreddit is private")
+    except ResponseException as e:
+        raise HTTPException(status_code=502, detail=f"Reddit API error: {e}")
     return [_serialize_summary(s) for s in subs]
 
 
 # ---------- Bonus 1b: author history ----------
 
+@app.post("/api/authors/{username}/fetch")
+def fetch_author(username: str, db: Session = Depends(get_db)):
+    """Fetch this author's recent comments from across Reddit."""
+    try:
+        count = fetch_author_history(username, db, limit=100)
+    except NotFound:
+        raise HTTPException(status_code=404, detail=f"Reddit user '{username}' not found")
+    except Forbidden:
+        raise HTTPException(status_code=403, detail="User profile is private or suspended")
+    except ResponseException as e:
+        raise HTTPException(status_code=502, detail=f"Reddit API error: {e}")
+    return {"username": username, "fetched": count}
+
+
 @app.get("/api/authors/{username}", response_model=AuthorOut)
 def get_author(username: str, db: Session = Depends(get_db)):
-    # Find all comments by this author
     comments = (
         db.query(Comment, Submission)
         .join(Submission, Comment.submission_id == Submission.id)
@@ -125,15 +176,17 @@ def get_author(username: str, db: Session = Depends(get_db)):
     if not comments:
         raise HTTPException(
             status_code=404,
-            detail=f"No comments found for user '{username}' in our database.",
+            detail=f"No comments stored for u/{username}. Try clicking 'Fetch from Reddit' first.",
         )
 
     subreddits = sorted({s.subreddit for _, s in comments})
+    author_row = db.get(Author, username)
 
     return AuthorOut(
         username=username,
         total_comments=len(comments),
         subreddits=subreddits,
+        last_fetched_at=utc_to_sgt_iso(author_row.last_fetched_at) if author_row and author_row.last_fetched_at else None,
         comments=[
             CommentWithContext(
                 id=c.id,
@@ -150,7 +203,7 @@ def get_author(username: str, db: Session = Depends(get_db)):
     )
 
 
-# ---------- Stats for homepage ----------
+# ---------- Stats ----------
 
 @app.get("/api/stats")
 def get_stats(db: Session = Depends(get_db)):
@@ -163,6 +216,7 @@ def get_stats(db: Session = Depends(get_db)):
         "comments": total_comments or 0,
         "subreddits": subreddits or 0,
         "unique_authors": authors or 0,
+        "mode": "mock" if settings.USE_MOCK else "live",
     }
 
 

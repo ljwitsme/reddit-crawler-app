@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,109 +7,89 @@
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@600&display=swap"
-    rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/styles.css">
 </head>
-
 <body>
-  <div class="app">
-    <aside class="sidebar">
-      <div class="brand">
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a href="/" class="brand">
         <div class="brand-logo">R</div>
-        <div>
+        <div class="brand-text">
           <div class="brand-name">Reddit Crawler</div>
           <div class="brand-sub">Intel Dashboard</div>
         </div>
-      </div>
-      
-      <div class="nav-section">Navigation</div>
-      <a href="/" class="nav-item active">
-        <span class="nav-icon">◆</span> Dashboard
       </a>
+      <div class="topbar-meta">Built for MHA ISD assignment</div>
+    </div>
+  </header>
 
-      <div class="sidebar-footer">
-        <div>Reddit Crawler v0.2</div>
-        <div>Built for MHA ISD assignment</div>
+  <main class="main">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Dashboard</h1>
+        <p class="page-subtitle">Crawl, store, and analyse Reddit submissions and comments.</p>
       </div>
-    </aside>
+    </div>
 
-    <main class="main">
-      <div class="page-header">
+    <section class="stats-grid" id="stats">
+      <div class="stat-card"><div class="stat-label">Submissions</div><div class="stat-value">–</div></div>
+      <div class="stat-card"><div class="stat-label">Comments</div><div class="stat-value">–</div></div>
+      <div class="stat-card"><div class="stat-label">Subreddits</div><div class="stat-value">–</div></div>
+      <div class="stat-card"><div class="stat-label">Unique authors</div><div class="stat-value">–</div></div>
+    </section>
+
+    <section class="panel" id="crawl-single">
+      <div class="panel-header">
         <div>
-          <h1 class="page-title">Dashboard</h1>
-          <p class="page-subtitle">Crawl, store, and analyse Reddit submissions and comments.</p>
+          <h2 class="panel-title">Crawl a submission</h2>
+          <div class="panel-subtitle">Paste any Reddit post URL</div>
         </div>
       </div>
+      <div class="panel-body">
+        <div class="input-row">
+          <input type="text" id="url" placeholder="https://www.reddit.com/r/singapore/comments/...">
+          <button id="crawl-btn">Crawl</button>
+        </div>
+        <div class="status-msg" id="status"></div>
+      </div>
+    </section>
 
-      <section class="stats-grid" id="stats">
-        <div class="stat-card">
-          <div class="stat-label">Submissions</div>
-          <div class="stat-value">–</div>
+    <section class="panel" id="crawl-batch">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">Batch crawl a subreddit</h2>
+          <div class="panel-subtitle">Pull the latest 50 posts from any subreddit</div>
         </div>
-        <div class="stat-card">
-          <div class="stat-label">Comments</div>
-          <div class="stat-value">–</div>
+      </div>
+      <div class="panel-body">
+        <div class="input-row">
+          <input type="text" id="subreddit-name" placeholder="singapore">
+          <button id="crawl-sub-btn">Crawl 50 posts</button>
         </div>
-        <div class="stat-card">
-          <div class="stat-label">Subreddits</div>
-          <div class="stat-value">–</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Unique authors</div>
-          <div class="stat-value">–</div>
-        </div>
-      </section>
+        <div class="status-msg" id="sub-status"></div>
+      </div>
+    </section>
 
-      <section class="panel" id="crawl-single">
-        <div class="panel-header">
-          <div>
-            <h2 class="panel-title">Crawl a submission</h2>
-            <div class="panel-subtitle">Paste any Reddit post URL</div>
-          </div>
+    <section class="panel">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">Crawled submissions</h2>
+          <div class="panel-subtitle">All submissions stored in the database</div>
         </div>
-        <div class="panel-body">
-          <div class="input-row">
-            <input type="text" id="url" placeholder="https://www.reddit.com/r/singapore/comments/...">
-            <button id="crawl-btn">Crawl</button>
-          </div>
-          <div class="status-msg" id="status"></div>
+        <select id="sort-select" class="sort-select">
+          <option value="newest">Newest crawled</option>
+          <option value="upvotes">Most upvotes</option>
+          <option value="comments">Most comments</option>
+        </select>
+      </div>
+      <div class="panel-body tight">
+        <div id="submissions-list" class="sub-list">
+          <div class="loading"><span class="spinner"></span>Loading...</div>
         </div>
-      </section>
-
-      <section class="panel" id="crawl-batch">
-        <div class="panel-header">
-          <div>
-            <h2 class="panel-title">Batch crawl a subreddit</h2>
-            <div class="panel-subtitle">Pull the latest 50 posts from any subreddit</div>
-          </div>
-        </div>
-        <div class="panel-body">
-          <div class="input-row">
-            <input type="text" id="subreddit-name" placeholder="singapore">
-            <button id="crawl-sub-btn">Crawl 50 posts</button>
-          </div>
-          <div class="status-msg" id="sub-status"></div>
-        </div>
-      </section>
-
-      <section class="panel">
-        <div class="panel-header">
-          <div>
-            <h2 class="panel-title">Crawled submissions</h2>
-            <div class="panel-subtitle">All submissions stored in the database</div>
-          </div>
-        </div>
-        <div class="panel-body tight">
-          <div id="submissions-list" class="sub-list">
-            <div class="loading"><span class="spinner"></span>Loading...</div>
-          </div>
-        </div>
-      </section>
-    </main>
-  </div>
+      </div>
+    </section>
+  </main>
   <script src="/static/js/app.js"></script>
 </body>
-
 </html>

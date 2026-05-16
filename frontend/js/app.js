@@ -8,6 +8,11 @@ const subStatusEl = document.getElementById('sub-status');
 
 const listEl = document.getElementById('submissions-list');
 const statsEl = document.getElementById('stats');
+const sortSelect = document.getElementById('sort-select');
+
+const PAGE_SIZE = 10;
+let currentPage = 1;
+let currentSort = 'newest';
 
 crawlBtn.addEventListener('click', crawl);
 urlInput.addEventListener('keydown', e => { if (e.key === 'Enter') crawl(); });
@@ -15,8 +20,13 @@ urlInput.addEventListener('keydown', e => { if (e.key === 'Enter') crawl(); });
 subBtn.addEventListener('click', crawlSubreddit);
 subInput.addEventListener('keydown', e => { if (e.key === 'Enter') crawlSubreddit(); });
 
+sortSelect.addEventListener('change', () => {
+  currentSort = sortSelect.value;
+  loadSubmissions(1);
+});
+
 loadStats();
-loadSubmissions();
+loadSubmissions(1);
 
 async function crawl() {
   const url = urlInput.value.trim();
@@ -36,7 +46,7 @@ async function crawl() {
     const data = await res.json();
     setStatus(statusEl, `✓ Done. <a href="/submission/${data.id}">View submission →</a>`, 'success');
     loadStats();
-    loadSubmissions();
+    loadSubmissions(1);
   } catch (e) {
     setStatus(statusEl, '✗ ' + e.message, 'error');
   } finally {
@@ -62,7 +72,7 @@ async function crawlSubreddit() {
     const data = await res.json();
     setStatus(subStatusEl, `✓ Done. Crawled ${data.length} posts from r/${subreddit}. <a href="/subreddit/${subreddit}">View →</a>`, 'success');
     loadStats();
-    loadSubmissions();
+    loadSubmissions(1);
   } catch (e) {
     setStatus(subStatusEl, '✗ ' + e.message, 'error');
   } finally {
@@ -90,11 +100,14 @@ async function loadStats() {
   }
 }
 
-async function loadSubmissions() {
+async function loadSubmissions(page) {
+  currentPage = page;
+  listEl.innerHTML = '<div class="loading"><span class="spinner"></span>Loading...</div>';
   try {
-    const res = await fetch('/api/submissions');
+    const res = await fetch(`/api/submissions?page=${page}&page_size=${PAGE_SIZE}&sort=${currentSort}`);
     const data = await res.json();
-    if (data.length === 0) {
+
+    if (data.total === 0) {
       listEl.innerHTML = `
         <div class="empty-state">
           <div class="icon">○</div>
@@ -103,7 +116,17 @@ async function loadSubmissions() {
         </div>`;
       return;
     }
-    listEl.innerHTML = data.map(s => renderRow(s)).join('');
+
+    listEl.innerHTML = `
+      ${data.items.map(renderRow).join('')}
+      ${renderPagination(data)}
+    `;
+
+    listEl.querySelectorAll('[data-page]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        loadSubmissions(parseInt(btn.dataset.page));
+      });
+    });
   } catch (e) {
     listEl.textContent = 'Failed to load submissions.';
   }
@@ -130,6 +153,47 @@ function renderRow(s) {
       <div class="sub-comments">${s.num_comments.toLocaleString()} comments</div>
     </div>
   `;
+}
+
+function renderPagination(data) {
+  if (data.total_pages <= 1) return '';
+
+  const start = (data.page - 1) * data.page_size + 1;
+  const end = Math.min(data.page * data.page_size, data.total);
+
+  const pageNumbers = getPageNumbers(data.page, data.total_pages);
+  const numberButtons = pageNumbers.map(p => {
+    if (p === '...') return `<span class="page-ellipsis">…</span>`;
+    const isActive = p === data.page;
+    return `<button class="page-btn ${isActive ? 'active' : ''}" data-page="${p}">${p}</button>`;
+  }).join('');
+
+  return `
+    <div class="pagination">
+      <div class="pagination-info">
+        Showing ${start.toLocaleString()}–${end.toLocaleString()} of ${data.total.toLocaleString()}
+      </div>
+      <div class="pagination-controls">
+        <button class="page-btn" data-page="${data.page - 1}" ${data.page === 1 ? 'disabled' : ''}>← Prev</button>
+        ${numberButtons}
+        <button class="page-btn" data-page="${data.page + 1}" ${data.page === data.total_pages ? 'disabled' : ''}>Next →</button>
+      </div>
+    </div>
+  `;
+}
+
+function getPageNumbers(current, total) {
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+  const pages = [1];
+  if (current > 3) pages.push('...');
+  for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) {
+    pages.push(i);
+  }
+  if (current < total - 2) pages.push('...');
+  pages.push(total);
+  return pages;
 }
 
 function escapeHtml(s) {

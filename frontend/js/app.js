@@ -2,10 +2,6 @@ const urlInput = document.getElementById('url');
 const crawlBtn = document.getElementById('crawl-btn');
 const statusEl = document.getElementById('status');
 
-const subInput = document.getElementById('subreddit-name');
-const subBtn = document.getElementById('crawl-sub-btn');
-const subStatusEl = document.getElementById('sub-status');
-
 const listEl = document.getElementById('submissions-list');
 const statsEl = document.getElementById('stats');
 const sortSelect = document.getElementById('sort-select');
@@ -16,9 +12,6 @@ let currentSort = 'newest';
 
 crawlBtn.addEventListener('click', crawl);
 urlInput.addEventListener('keydown', e => { if (e.key === 'Enter') crawl(); });
-
-subBtn.addEventListener('click', crawlSubreddit);
-subInput.addEventListener('keydown', e => { if (e.key === 'Enter') crawlSubreddit(); });
 
 sortSelect.addEventListener('change', () => {
   currentSort = sortSelect.value;
@@ -31,7 +24,7 @@ loadSubmissions(1);
 async function crawl() {
   const url = urlInput.value.trim();
   if (!url) return;
-  setStatus(statusEl, '<span class="spinner"></span>Crawling (large threads can take 30–60 seconds)...');
+  setStatus(statusEl, '<span class="spinner"></span>Crawling the post and 50 more from the same subreddit. This takes 1–3 minutes...');
   crawlBtn.disabled = true;
   try {
     const res = await fetch('/api/crawl', {
@@ -44,39 +37,20 @@ async function crawl() {
       throw new Error(err.detail || res.statusText);
     }
     const data = await res.json();
-    setStatus(statusEl, `✓ Done. <a href="/submission/${data.id}">View submission →</a>`, 'success');
+    const subInfo = data.batch_count !== undefined
+      ? ` Also crawled ${data.batch_count} additional posts from r/${data.subreddit}.`
+      : '';
+    setStatus(
+      statusEl,
+      `✓ Done.${subInfo} <a href="/submission/${data.submission.id}">View submission →</a>`,
+      'success'
+    );
     loadStats();
     loadSubmissions(1);
   } catch (e) {
     setStatus(statusEl, '✗ ' + e.message, 'error');
   } finally {
     crawlBtn.disabled = false;
-  }
-}
-
-async function crawlSubreddit() {
-  const subreddit = subInput.value.trim();
-  if (!subreddit) return;
-  setStatus(subStatusEl, '<span class="spinner"></span>Crawling 50 posts (this takes 1–3 minutes)...');
-  subBtn.disabled = true;
-  try {
-    const res = await fetch('/api/crawl-subreddit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ subreddit, limit: 50 }),
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || res.statusText);
-    }
-    const data = await res.json();
-    setStatus(subStatusEl, `✓ Done. Crawled ${data.length} posts from r/${subreddit}. <a href="/subreddit/${subreddit}">View →</a>`, 'success');
-    loadStats();
-    loadSubmissions(1);
-  } catch (e) {
-    setStatus(subStatusEl, '✗ ' + e.message, 'error');
-  } finally {
-    subBtn.disabled = false;
   }
 }
 

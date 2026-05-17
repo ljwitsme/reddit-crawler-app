@@ -43,7 +43,10 @@
       <div class="panel-header">
         <div>
           <h2 class="panel-title">Crawl a submission</h2>
-          <div class="panel-subtitle">Paste any Reddit post URL</div>
+          <div class="panel-subtitle">
+            Paste any Reddit post URL. The app crawls the post and its full comment tree,
+            then automatically pulls 50 more posts from the same subreddit.
+          </div>
         </div>
       </div>
       <div class="panel-body">
@@ -52,22 +55,6 @@
           <button id="crawl-btn">Crawl</button>
         </div>
         <div class="status-msg" id="status"></div>
-      </div>
-    </section>
-
-    <section class="panel" id="crawl-batch">
-      <div class="panel-header">
-        <div>
-          <h2 class="panel-title">Batch crawl a subreddit</h2>
-          <div class="panel-subtitle">Pull the latest 50 posts from any subreddit</div>
-        </div>
-      </div>
-      <div class="panel-body">
-        <div class="input-row">
-          <input type="text" id="subreddit-name" placeholder="singapore">
-          <button id="crawl-sub-btn">Crawl 50 posts</button>
-        </div>
-        <div class="status-msg" id="sub-status"></div>
       </div>
     </section>
 

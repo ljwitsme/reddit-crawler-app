@@ -1,51 +1,147 @@
 # Reddit Crawler — MHA ISD Assignment
 
-A web application that crawls Reddit submissions and comments, stores them in MySQL, and presents them through a dashboard interface.
+A web application that crawls Reddit submissions and comments via PRAW, stores them in MySQL, and presents them through an analyst-friendly dashboard.
 
 ---
 
 ## Table of Contents
-- [Features](#features)
-- [Project Structure](#project-structure)
-- [Installation Guide](#installation-guide)
-  - [Prerequisites](#prerequisites)
-  - [MySQL Setup](#mysql-setup)
-  - [Reddit API Credentials](#reddit-api-credentials)
-  - [Environment Configuration](#environment-configuration)
-  - [Install Dependencies](#install-dependencies)
-- [Step to Run Codes Locally](#step-to-run-codes-locally)
-- [Usage](#usage)
-- [Database Schema](#database-schema)
-- [Analytics Proof of Concept](#analytics-proof-of-concept)
-- [Use of AI Tools](#use-of-ai-tools)
-- [Tech Stack](#tech-stack)
+
+1. [Overview](#overview)
+2. [Features](#features)
+3. [Quick Start (Docker)](#quick-start-docker)
+4. [Demo Screenshots](#demo-screenshots)
+5. [Architecture](#architecture)
+6. [Project Structure](#project-structure)
+7. [Detailed Setup (Local Python)](#detailed-setup-local-python)
+8. [Running the App](#running-the-app)
+9. [Usage](#usage)
+10. [Database Schema](#database-schema)
+11. [Technical Considerations](#technical-considerations)
+12. [Analytics Discussion](#analytics-discussion)
+13. [Containerisation](#containerisation)
+14. [Use of AI Tools](#use-of-ai-tools)
+15. [Tech Stack](#tech-stack)
+
+---
+
+## Overview
+
+Paste any Reddit submission URL and get a fully crawled view of the post, its complete nested comment tree, and 50 more posts from the same subreddit. Every author becomes a clickable profile showing their recent activity across all of Reddit. Data is stored in MySQL using a schema designed for both operational and analytical use.
 
 ---
 
 ## Features
 
-### Core Requirements
-- Accept any Reddit submission URL and crawl its full data
-- Extract submission title, ID, subreddit, author, score, and timestamps
-- Extract all comments including nested replies
-- Handle deleted and removed comments gracefully
-- Display all timestamps in Singapore Standard Time (SGT)
-- Store data in MySQL with a relational schema
+### Core Crawling
+Accepts any Reddit submission URL and crawls the full post plus its complete comment tree using PRAW. Extracts submission title, ID, subreddit, comment IDs, parent IDs, authors, body content, SGT timestamps, and upvote counts. Nested comments are fully expanded via `replace_more(limit=None)`. Deleted and removed comments are flagged with an `is_deleted` column and styled distinctly in the UI rather than dropped.
 
-### Bonus Objective 1
-- Batch crawl 50 submissions from any subreddit
-- Fetch and display an author's comment history from across Reddit
-- Click-through navigation between submissions, authors, and subreddits
+### Subreddit Expansion
+Pasting a Reddit URL automatically crawls 50 additional submissions from the same subreddit, each with its full nested comment tree. The subreddit is derived from the URL — no separate input needed.
 
-### Bonus Objective 2
-- Written discussion of analytical approaches in [`docs/analytics.md`](docs/analytics.md)
-- Working proof-of-concept implementations in [`docs/analytics_poc/`](docs/analytics_poc/)
+### Author History Across Reddit
+Every author has a clickable profile page. Clicking **Refresh from Reddit** fetches their 100 most recent comments from across all of Reddit via `redditor.comments.new(limit=100)`, not just one subreddit.
+
+### User Exploration
+Every author, subreddit, and submission is clickable, enabling free navigation through the data.
 
 ### UX Polish
-- Sortable list (newest, most upvotes, most comments)
-- Paginated submissions view (10 per page)
-- Breadcrumb navigation across detail pages
-- Empty states, loading spinners, and clear error messages
+Sortable submissions list, paginated views, collapsible comment threads with hidden-reply counts, "Expand all" / "Collapse all" controls, breadcrumb navigation, empty states, and loading spinners.
+
+### Analytics Discussion
+A written discussion of analytical approaches lives at [`docs/analytics.md`](docs/analytics.md), covering network analysis, sentiment and topics, temporal patterns, and toxicity detection.
+
+---
+
+## Quick Start (Docker)
+
+The fastest way to run the entire stack. Spins up the FastAPI app and MySQL together.
+
+### Prerequisites
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running
+- Reddit API credentials (see [Step 2 in Detailed Setup](#step-2-get-reddit-api-credentials) for how to obtain them)
+
+### Step 1: Clone the repository
+```bash
+git clone <your-repo-url>
+cd reddit-crawler-app
+```
+
+### Step 2: Create your `.env` file
+Open `.env` and fill in your Reddit credentials (see [Step 3 in Detailed Setup](#step-3-configure-your-environment) for the template and field descriptions). The `DATABASE_URL` is already configured for the bundled MySQL container.
+
+### Step 3: Start the stack
+```bash
+docker compose up --build
+```
+
+### Step 4: Open the dashboard
+Visit <http://localhost:8000>
+
+### Stopping
+```bash
+docker compose down          # stop containers, keep data
+docker compose down -v       # stop containers and wipe the database volume
+```
+
+---
+
+## Demo Screenshots
+
+### 1. Empty dashboard
+![Empty dashboard](docs/screenshots/01_empty_dashboard.png)
+
+Clean start state with all stats at zero.
+
+### 2. One URL paste → 51 submissions auto-batched
+![Populated dashboard](docs/screenshots/02_populated_dashboard.png)
+
+A single URL triggers the original crawl plus 50 more from the same subreddit, each with full comment trees.
+
+### 3. Submission detail with full metadata
+![Submission detail](docs/screenshots/03_submission_detail.png)
+
+Title, author, subreddit, score, SGT timestamp, and the full comment thread — sorted by score, paginated 20 top-level per page.
+
+### 4. Nested comments and deletion handling
+![Nested and deleted comments](docs/screenshots/04_nested_and_deleted_comments.png)
+
+Full reply trees rendered with visual indentation. Deleted comments preserved with greyed-italic styling.
+
+### 5. Collapse and pagination
+![Collapse and pagination](docs/screenshots/05_collapse_pagination.png)
+
+Per-comment collapse toggles with hidden-reply counts; pagination at the bottom.
+
+### 6. Cross-Reddit author exploration
+![Author profile](docs/screenshots/06_author_profile.png)
+
+Author profile showing recent comments from multiple subreddits across Reddit.
+
+---
+
+## Architecture
+
+Browser → FastAPI app → Reddit API (via PRAW) and MySQL (via SQLAlchemy). The entire application can be run using Docker.
+
+```
+┌────────────────────┐
+│      Browser       │
+│  HTML / CSS / JS   │
+└─────────┬──────────┘
+          │ HTTP
+          ▼
+┌─────────────────────┐
+│    FastAPI app      │
+│  Python + uvicorn   │
+└──┬─────────────┬────┘
+   │             │
+   │PRAW         │SQLAlchemy
+   ▼             ▼
+┌──────────┐  ┌────────────┐
+│ Reddit   │  │  MySQL 8   │
+│   API    │  │ (Docker)   │
+└──────────┘  └────────────┘
+```
 
 ---
 
@@ -54,6 +150,9 @@ A web application that crawls Reddit submissions and comments, stores them in My
 ```
 reddit-crawler-app/
 ├── .env.example
+├── .gitignore
+├── Dockerfile
+├── docker-compose.yml
 ├── requirements.txt
 ├── run.py
 ├── README.md
@@ -61,17 +160,15 @@ reddit-crawler-app/
 │   ├── config.py
 │   ├── database.py
 │   ├── api/             (FastAPI routes + Pydantic schemas)
-│   ├── crawler/         (PRAW client, URL parser, mock + real crawler)
+│   ├── crawler/         (PRAW client, URL parser, crawler dispatcher)
 │   ├── db/              (SQLAlchemy models)
 │   └── utils/           (UTC ↔ SGT conversion)
 ├── database/
 │   └── schema.sql
 ├── docs/
-│   ├── analytics.md            (Bonus 2 write-up)
-│   └── analytics_poc/          (Standalone analytics scripts)
-│       ├── requirements.txt
-│       ├── analyze.py
-│       └── output/             (Generated PNG visualisations)
+│   ├── analytics.md            (Analytics discussion)
+│   ├── architecture.png        (System architecture diagram)
+│   └── screenshots/            (Demo screenshots)
 └── frontend/
     ├── index.html
     ├── submission.html
@@ -84,15 +181,15 @@ reddit-crawler-app/
 
 ---
 
-## Installation Guide
+## Detailed Setup (Local Python)
+
+For running directly without Docker.
 
 ### Prerequisites
-- Python 3.11+
-- MySQL Server 8.0+
-- Reddit account with verified email (for API credentials, if running in live mode)
+Python 3.11+, MySQL Server 8.0+, and a Reddit account with a verified email.
 
-### MySQL Setup
-In MySQL Workbench, run as root:
+### Step 1: Set up MySQL
+In MySQL Workbench, connect as root and run:
 
 ```sql
 CREATE DATABASE reddit_crawler_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -101,29 +198,20 @@ GRANT ALL PRIVILEGES ON reddit_crawler_db.* TO 'reddit_user'@'localhost';
 FLUSH PRIVILEGES;
 ```
 
-### Reddit API Credentials
-*Only needed if `USE_MOCK=false`. The system works fully in mock mode without Reddit credentials.*
+### Step 2: Get Reddit API credentials
+Go to <https://www.reddit.com/prefs/apps>, click **create another app**, choose type **script**, and set redirect URI to `http://localhost:8000`. Note the client ID (shown under the app name) and client secret.
 
-1. Go to <https://www.reddit.com/prefs/apps>
-2. Click **create another app**, choose type **script**
-3. Set redirect URI to `http://localhost:8000`
-4. Note the **client ID** and **client secret**
+### Step 3: Configure your environment
+Fill in the following for your `.env`:
 
-### Environment Configuration
-Copy `.env.example` to `.env` and fill in:
-
-```
+```env
 REDDIT_CLIENT_ID=<your client ID>
 REDDIT_CLIENT_SECRET=<your client secret>
-REDDIT_USER_AGENT=reddit-crawler/0.1 by <your username>
+REDDIT_USER_AGENT=windows:reddit-crawler:v0.1 (by u/your_reddit_username)
 DATABASE_URL=mysql+pymysql://reddit_user:your_password@localhost:3306/reddit_crawler_db
-USE_MOCK=true
 ```
 
-Set `USE_MOCK=false` to use real Reddit data once your API credentials are configured.
-
-### Install Dependencies
-
+### Step 4: Install dependencies
 ```bash
 python -m venv .venv
 .venv\Scripts\activate         # Windows
@@ -133,15 +221,13 @@ pip install -r requirements.txt
 
 ---
 
-## Step to Run Codes Locally
+## Running the App
 
 ```bash
 python run.py
 ```
 
-The application will be available at:
-- **Dashboard:** <http://localhost:8000>
-- **API documentation:** <http://localhost:8000/docs>
+Dashboard at <http://localhost:8000>. Swagger UI at <http://localhost:8000/docs>.
 
 ---
 
@@ -149,75 +235,125 @@ The application will be available at:
 
 | Action | How |
 |---|---|
-| Crawl a submission | Paste a Reddit URL into the first form, click Crawl |
-| Batch crawl 50 posts | Type a subreddit name into the second form, click Crawl 50 posts |
-| View author history | Click any username, then "Refresh from Reddit" |
-| View subreddit submissions | Click any `r/subreddit` link |
-| Sort submissions | Use the dropdown in the "Crawled submissions" panel |
-| Navigate pages | Use the page buttons below the submissions list |
+| Crawl a submission + auto-batch 50 more from the same subreddit | Paste a Reddit URL on the dashboard, click **Crawl** (1–3 min) |
+| View a crawled submission with nested comments | Click any submission title |
+| Crawl more posts from a subreddit | Open a subreddit page, click **Crawl 50 more posts** |
+| View an author's cross-Reddit history | Click any username → **Refresh from Reddit** |
+| Sort or paginate | Use the dropdown and page buttons |
+| Browse the API surface | Visit `/docs` for Swagger UI |
 
 ---
 
 ## Database Schema
 
-Three tables: `submissions`, `comments`, `authors`. Reddit IDs are used as primary keys to support idempotent upserts. Timestamps are stored as UTC and converted to SGT at the display layer.
+The database has three tables: `submissions`, `comments`, and `authors`. Each row uses its Reddit ID as the primary key, so re-crawling the same post never creates duplicates. The `comments` table points back to itself via `parent_id` to preserve reply chains. All timestamps are stored in UTC and converted to SGT when shown to the user.
+
+### `submissions`
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | String(50) | Reddit submission ID. Primary key — enables idempotent upserts on re-crawl. **(Required: Submission ID)** |
+| `title` | Text | The submission's title. **(Required: Submission title)** |
+| `author` | String(255), nullable | Reddit username of the submitter. Null if the account was deleted. |
+| `subreddit` | String(255), indexed | Subreddit the submission was posted to. **(Required: Subreddit name)** |
+| `selftext` | MEDIUMTEXT, nullable | Body text for self-posts. Null for link posts. |
+| `url` | Text | Permalink to the submission on Reddit. |
+| `score` | Integer | Net upvotes on the submission. **(Required: Upvote count)** |
+| `num_comments` | Integer | Total comment count on Reddit (used for sorting). |
+| `created_utc` | DateTime, indexed | When the submission was posted on Reddit (UTC, converted to SGT at display). **(Required: Date and time)** |
+| `crawled_at` | DateTime | When this row was last crawled (used for sorting "newest crawled"). |
+
+### `comments`
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | String(50) | Reddit comment ID. Primary key — enables idempotent upserts on re-crawl. **(Required: Comment ID)** |
+| `submission_id` | String(20), FK, indexed | Foreign key to `submissions.id` with `ON DELETE CASCADE`. |
+| `parent_id` | String(20), nullable, indexed | Reddit ID of the parent comment, or null for top-level comments. Preserves the reply tree. **(Required: Parent comment ID)** |
+| `author` | String(255), nullable, indexed | Reddit username of the commenter. Null if the comment was deleted. **(Required: Comment author)** |
+| `body` | MEDIUMTEXT, nullable | The comment text. `[deleted]` or `[removed]` if applicable. **(Required: Comment content)** |
+| `score` | Integer | Net upvotes on the comment. **(Required: Upvote count)** |
+| `created_utc` | DateTime | When the comment was posted on Reddit (UTC, converted to SGT at display). **(Required: Date and time)** |
+| `is_deleted` | Boolean | True if the comment was deleted or removed. Used to render greyed-italic styling without dropping the row. |
+| `submission_title` | Text, nullable | Cached parent-submission title. Populated for author-history comments crawled outside of a known submission, so the author profile page can display context. |
+| `submission_subreddit` | String(255), nullable | Cached parent-submission subreddit. Same rationale as `submission_title`. |
+
+### `authors`
+
+| Column | Type | Purpose |
+|---|---|---|
+| `username` | String(255) | Reddit username. Primary key. |
+| `last_fetched_at` | DateTime, nullable | When this author's cross-Reddit comment history was last refreshed. Drives the "Refresh from Reddit" timestamp shown on the author profile page. |
+| `total_comments_fetched` | Integer | Running count of comments fetched for this author across all "Refresh from Reddit" runs. |
+
+### Indexes
+
+A composite index `ix_comments_submission_parent` on `(submission_id, parent_id)` accelerates the recursive tree query used to render comment threads. Individual indexes on `comments.author`, `comments.parent_id`, `submissions.subreddit`, and `submissions.created_utc` support fast analytical queries.
 
 Full schema: [`database/schema.sql`](database/schema.sql).
 
 ---
 
-## Analytics Proof of Concept
+## Technical Considerations
 
-A standalone Python script in [`docs/analytics_poc/`](docs/analytics_poc/) demonstrates four of the analytical approaches discussed in `docs/analytics.md`, using real data from the crawler database:
+**Nested comments** are fully expanded via PRAW's `replace_more(limit=None)`. The frontend renders the tree recursively with visual indentation.
 
-- Sentiment classification (VADER)
-- Word cloud of dominant terms
-- Activity heatmap (hour × day-of-week, SGT)
-- Top authors and top subreddits
+**Deleted comments** (null author or body `[deleted]`/`[removed]`) are flagged with `is_deleted = TRUE` and rendered greyed-italic, preserving the thread structure.
 
-To run it (from the project root):
+**Error handling** maps PRAW exceptions to HTTP responses: 400 for invalid URLs, 404 for missing items, 403 for private subreddits, 502 for Reddit API issues. PRAW's built-in throttle handles rate limiting automatically.
 
-```bash
-pip install -r docs/analytics_poc/requirements.txt
-python docs/analytics_poc/analyze.py
-```
+---
 
-PNG visualisations are written to `docs/analytics_poc/output/`.
+## Analytics Discussion
+
+The discussion document at [`docs/analytics.md`](docs/analytics.md) covers analytical approaches for crawled Reddit data, framed for an internal-security audience. Nine common analytical areas are bundled into four themes:
+
+| Theme | Methods & Tools |
+|---|---|
+| **Network and Community Analysis** | Graph construction, PageRank, community detection (Louvain/Leiden), coordination signals via HDBSCAN clustering |
+| **Content Analysis (Sentiment and Topics)** | VADER baseline, fine-tuned RoBERTa for production, BERTopic for topic modelling. Singlish flagged as a domain challenge |
+| **Temporal and Behavioural Analysis** | Activity patterns, anomaly detection, bot detection, change-point analysis |
+| **Toxicity and Integrity Analysis** | Perspective API / Detoxify for toxicity, hybrid rule-and-ML for spam, embedding similarity for narrative tracking |
+
+The document also covers engineering considerations on scale, schema readiness, and privacy.
+
+---
+
+## Containerisation
+
+The application is fully containerised. The `Dockerfile` builds the FastAPI app image and `docker-compose.yml` orchestrates the app container alongside a MySQL 8 container with persistent volume storage. See [Quick Start (Docker)](#quick-start-docker) above for the commands to run it.
 
 ---
 
 ## Use of AI Tools
 
-In line with Section 6 of the brief, AI assistants (Claude) were used for boilerplate generation, debugging, and documentation. All design decisions, architecture choices, and the final implementation are owned by the candidate.
+AI assistants (Claude) were used to brainstorm ideas, explore approaches, and assist with code generation. The candidate reviewed and verified all output to ensure the final implementation reflects the intended design and requirements.
 
 ---
 
 ## Tech Stack
 
-#### Frontend UI
-- [![HTML5](https://img.shields.io/badge/HTML5-E34F26.svg?style=for-the-badge&logo=HTML5&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/Guide/HTML/HTML5)
-- [![CSS3](https://img.shields.io/badge/CSS3-1572B6.svg?style=for-the-badge&logo=CSS3&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/CSS)
-- [![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E.svg?style=for-the-badge&logo=JavaScript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
-- [![JSON](https://img.shields.io/badge/JSON-000000.svg?style=for-the-badge&logo=JSON&logoColor=white)](https://www.json.org/)
+#### Frontend
+[![HTML5](https://img.shields.io/badge/HTML5-E34F26.svg?style=for-the-badge&logo=HTML5&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/Guide/HTML/HTML5)
+[![CSS3](https://img.shields.io/badge/CSS3-1572B6.svg?style=for-the-badge&logo=CSS3&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/CSS)
+[![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E.svg?style=for-the-badge&logo=JavaScript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
 
 #### Backend
-- [![Python](https://img.shields.io/badge/Python-3776AB.svg?style=for-the-badge&logo=Python&logoColor=white)](https://www.python.org/)
-- [![FastAPI](https://img.shields.io/badge/FastAPI-009688.svg?style=for-the-badge&logo=FastAPI&logoColor=white)](https://fastapi.tiangolo.com/)
-- [![Uvicorn](https://img.shields.io/badge/Uvicorn-499848.svg?style=for-the-badge&logo=Gunicorn&logoColor=white)](https://www.uvicorn.org/)
-- [![Pydantic](https://img.shields.io/badge/Pydantic-E92063.svg?style=for-the-badge&logo=Pydantic&logoColor=white)](https://docs.pydantic.dev/)
+[![Python](https://img.shields.io/badge/Python-3776AB.svg?style=for-the-badge&logo=Python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688.svg?style=for-the-badge&logo=FastAPI&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Uvicorn](https://img.shields.io/badge/Uvicorn-499848.svg?style=for-the-badge&logo=Gunicorn&logoColor=white)](https://www.uvicorn.org/)
+[![Pydantic](https://img.shields.io/badge/Pydantic-E92063.svg?style=for-the-badge&logo=Pydantic&logoColor=white)](https://docs.pydantic.dev/)
 
 #### Database
-- [![MySQL](https://img.shields.io/badge/MySQL-4479A1.svg?style=for-the-badge&logo=MySQL&logoColor=white)](https://www.mysql.com/)
-- [![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-D71F00.svg?style=for-the-badge&logo=SQLAlchemy&logoColor=white)](https://www.sqlalchemy.org/)
+[![MySQL](https://img.shields.io/badge/MySQL-4479A1.svg?style=for-the-badge&logo=MySQL&logoColor=white)](https://www.mysql.com/)
+[![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-D71F00.svg?style=for-the-badge&logo=SQLAlchemy&logoColor=white)](https://www.sqlalchemy.org/)
 
 #### API Integration
-- [![Reddit](https://img.shields.io/badge/Reddit%20API-FF4500.svg?style=for-the-badge&logo=Reddit&logoColor=white)](https://www.reddit.com/dev/api/)
-- [![PRAW](https://img.shields.io/badge/PRAW-FF4500.svg?style=for-the-badge&logo=Reddit&logoColor=white)](https://praw.readthedocs.io/)
+[![Reddit](https://img.shields.io/badge/Reddit%20API-FF4500.svg?style=for-the-badge&logo=Reddit&logoColor=white)](https://www.reddit.com/dev/api/)
+[![PRAW](https://img.shields.io/badge/PRAW-FF4500.svg?style=for-the-badge&logo=Reddit&logoColor=white)](https://praw.readthedocs.io/)
 
-#### Analytics (POC)
-- [![VADER](https://img.shields.io/badge/VADER%20Sentiment-FF6B6B.svg?style=for-the-badge&logo=python&logoColor=white)](https://github.com/cjhutto/vaderSentiment)
-- [![Matplotlib](https://img.shields.io/badge/Matplotlib-11557C.svg?style=for-the-badge&logo=python&logoColor=white)](https://matplotlib.org/)
-- [![WordCloud](https://img.shields.io/badge/WordCloud-4B8BBE.svg?style=for-the-badge&logo=python&logoColor=white)](https://github.com/amueller/word_cloud)
+#### Containerisation
+[![Docker](https://img.shields.io/badge/Docker-2496ED.svg?style=for-the-badge&logo=Docker&logoColor=white)](https://www.docker.com/)
 
 <br><br>
 

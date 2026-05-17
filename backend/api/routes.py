@@ -6,7 +6,6 @@ from sqlalchemy import func
 from prawcore.exceptions import NotFound, Forbidden, ResponseException
 
 from backend.database import engine, Base, get_db
-from backend.config import settings
 from backend.db.models import Submission, Comment, Author
 from backend.crawler.service import (
     crawl_submission,
@@ -26,7 +25,7 @@ from backend.api.schemas import (
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Reddit Crawler", version="0.3.0")
+app = FastAPI(title="Reddit Crawler", version="0.5.0")
 
 
 def _serialize_submission(sub: Submission) -> SubmissionOut:
@@ -67,10 +66,18 @@ def _serialize_summary(s: Submission) -> SubmissionSummary:
     )
 
 
-# ---------- Core: single submission ----------
+# ---------- Core: single submission + auto subreddit expansion ----------
 
-@app.post("/api/crawl", response_model=SubmissionOut)
+@app.post("/api/crawl")
 def crawl(req: CrawlRequest, db: Session = Depends(get_db)):
+    """
+    Crawl a Reddit submission by URL.
+
+    Per the brief's Bonus Objective 1 (Subreddit Expansion Crawling):
+    after fetching the specified submission, the same subreddit is
+    automatically expanded — up to 50 more posts from that subreddit
+    are crawled and stored.
+    """
     try:
         sub = crawl_submission(req.url, db)
     except ValueError as e:
@@ -81,7 +88,22 @@ def crawl(req: CrawlRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=403, detail="Submission is private or restricted")
     except ResponseException as e:
         raise HTTPException(status_code=502, detail=f"Reddit API error: {e}")
-    return _serialize_submission(sub)
+
+    # Bonus 1a: also crawl 50 more posts from the same subreddit
+    batch_count = 0
+    try:
+        batch_subs = crawl_subreddit_batch(sub.subreddit, 50, db)
+        batch_count = len(batch_subs)
+    except (NotFound, Forbidden, ResponseException):
+        # If the subreddit expansion fails for any reason, don't fail the whole request.
+        # The user still gets the specific submission they asked for.
+        batch_count = 0
+
+    return {
+        "submission": _serialize_submission(sub).model_dump(),
+        "subreddit": sub.subreddit,
+        "batch_count": batch_count,
+    }
 
 
 @app.get("/api/submissions/{submission_id}", response_model=SubmissionOut)
@@ -129,7 +151,9 @@ def list_submissions(
     }
 
 
-# ---------- Bonus 1a: subreddit batch ----------
+# ---------- Direct subreddit batch endpoint ----------
+# Kept available for API users and the analytics POC.
+# Used by the subreddit page's "Crawl 50 more" button.
 
 @app.post("/api/crawl-subreddit", response_model=list[SubmissionSummary])
 def crawl_subreddit(req: SubredditCrawlRequest, db: Session = Depends(get_db)):
@@ -215,7 +239,6 @@ def get_stats(db: Session = Depends(get_db)):
         "comments": total_comments or 0,
         "subreddits": subreddits or 0,
         "unique_authors": authors or 0,
-        "mode": "offline" if settings.USE_MOCK else "live",
     }
 
 

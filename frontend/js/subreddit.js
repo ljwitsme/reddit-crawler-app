@@ -1,8 +1,6 @@
 const pathParts = window.location.pathname.split('/');
 const subredditName = decodeURIComponent(pathParts[pathParts.length - 1]);
 const contentEl = document.getElementById('content');
-const batchBtn = document.getElementById('batch-btn');
-const batchStatusEl = document.getElementById('batch-status');
 
 const PAGE_SIZE = 10;
 let currentPage = 1;
@@ -11,7 +9,6 @@ let currentSort = 'newest';
 document.getElementById('sub-name').textContent = `r/${subredditName}`;
 document.getElementById('crumb-name').textContent = `r/${subredditName}`;
 
-batchBtn.addEventListener('click', batchCrawl);
 load(1);
 
 async function load(page) {
@@ -25,7 +22,7 @@ async function load(page) {
         <div class="empty-state">
           <div class="icon">○</div>
           <div class="title">No submissions for r/${subredditName}</div>
-          <div class="hint">Click "Crawl 50 more posts" above to seed the database.</div>
+          <div class="hint">Paste a Reddit URL from r/${subredditName} on the dashboard to populate this view.</div>
         </div>`;
       return;
     }
@@ -125,32 +122,6 @@ function getPageNumbers(current, total) {
   if (current < total - 2) pages.push('...');
   pages.push(total);
   return pages;
-}
-
-async function batchCrawl() {
-  batchBtn.disabled = true;
-  batchStatusEl.className = 'status-msg';
-  batchStatusEl.innerHTML = '<span class="spinner"></span>Crawling 50 posts...';
-  try {
-    const res = await fetch('/api/crawl-subreddit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ subreddit: subredditName, limit: 50 }),
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || res.statusText);
-    }
-    const data = await res.json();
-    batchStatusEl.className = 'status-msg success';
-    batchStatusEl.textContent = `✓ Added ${data.length} posts.`;
-    load(1);
-  } catch (e) {
-    batchStatusEl.className = 'status-msg error';
-    batchStatusEl.textContent = '✗ ' + e.message;
-  } finally {
-    batchBtn.disabled = false;
-  }
 }
 
 function escapeHtml(s) {

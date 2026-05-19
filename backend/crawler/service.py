@@ -11,7 +11,19 @@ from backend.crawler.real_crawler import (
 
 
 def crawl_submission(url: str, db: Session) -> Submission:
-    return crawl_submission_real(url, db)
+    # 1. Crawl the specific submission (with its full comment tree)
+    submission = crawl_submission_real(url, db)
+
+    # 2. Auto-batch 50 more posts from the same subreddit
+    #    (Bonus Objective 1a — subreddit expansion)
+    try:
+        crawl_subreddit_batch_real(submission.subreddit, limit=50, db=db)
+    except Exception as e:
+        # Don't fail the entire request if the batch errors;
+        # the user still gets their requested submission.
+        print(f"[crawl_submission] Auto-batch failed for r/{submission.subreddit}: {e}")
+
+    return submission
 
 
 def crawl_subreddit_batch(subreddit: str, limit: int, db: Session) -> list[Submission]:

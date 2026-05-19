@@ -32,24 +32,16 @@ Paste any Reddit submission URL and get a fully crawled view of the post, its co
 
 ## Features
 
-### Core Crawling
-Accepts any Reddit submission URL and crawls the full post plus its complete comment tree using PRAW. Extracts submission title, ID, subreddit, comment IDs, parent IDs, authors, body content, SGT timestamps, and upvote counts. Nested comments are fully expanded via `replace_more(limit=None)`. Deleted and removed comments are flagged with an `is_deleted` column and styled distinctly in the UI rather than dropped.
+## Features
 
-### Subreddit Expansion
-Pasting a Reddit URL automatically crawls 50 additional submissions from the same subreddit, each with its full nested comment tree. The subreddit is derived from the URL — no separate input needed.
-
-### Author History Across Reddit
-Every author has a clickable profile page. Clicking **Refresh from Reddit** fetches their 100 most recent comments from across all of Reddit via `redditor.comments.new(limit=100)`, not just one subreddit.
-
-### User Exploration
-Every author, subreddit, and submission is clickable, enabling free navigation through the data.
-
-### UX Polish
-Sortable submissions list, paginated views, collapsible comment threads with hidden-reply counts, "Expand all" / "Collapse all" controls, breadcrumb navigation, empty states, and loading spinners.
-
-### Analytics Discussion
-A written discussion of analytical approaches lives at [`docs/analytics.md`](docs/analytics.md), covering network analysis, sentiment and topics, temporal patterns, and toxicity detection.
-
+| S/N | Feature | Explanation |
+|---|---|---|
+| 1 | Core Crawling | Accepts any Reddit submission URL and crawls the full post plus its complete comment tree using PRAW. Extracts submission title, ID, subreddit, comment IDs, parent IDs, authors, body content, SGT timestamps, and upvote counts. Nested comments are fully expanded via `replace_more(limit=None)`. Deleted and removed comments are flagged with an `is_deleted` column and styled distinctly in the UI rather than dropped. |
+| 2 | Subreddit Expansion | Pasting a Reddit URL automatically crawls 50 additional submissions from the same subreddit, each with its full nested comment tree. The subreddit is derived from the URL — no separate input needed. |
+| 3 | Author History Across Reddit | Every author has a clickable profile page. Clicking **Refresh from Reddit** fetches their 100 most recent comments from across all of Reddit via `redditor.comments.new(limit=100)`, not just one subreddit. |
+| 4 | User Exploration | Every author, subreddit, and submission is clickable, enabling free navigation through the data. |
+| 5 | UX Polish | Sortable submissions list, paginated views, collapsible comment threads with hidden-reply counts, "Expand all" / "Collapse all" controls, breadcrumb navigation, empty states, and loading spinners. |
+| 6 | Analytics Discussion | A written discussion of analytical approaches lives at [`docs/analytics.md`](docs/analytics.md), covering network analysis, sentiment and topics, temporal patterns, and toxicity detection. |
 ---
 
 ## Quick Start (Docker)
@@ -67,6 +59,9 @@ cd reddit-crawler-app
 ```
 
 ### Step 2: Create your `.env` file
+```bash
+cp .env.example .env
+```
 Open `.env` and fill in your Reddit credentials (see [Step 3 in Detailed Setup](#step-3-configure-your-environment) for the template and field descriptions). The `DATABASE_URL` is already configured for the bundled MySQL container.
 
 ### Step 3: Start the stack
@@ -167,7 +162,6 @@ reddit-crawler-app/
 │   └── schema.sql
 ├── docs/
 │   ├── analytics.md            (Analytics discussion)
-│   ├── architecture.png        (System architecture diagram)
 │   └── screenshots/            (Demo screenshots)
 └── frontend/
     ├── index.html
@@ -202,7 +196,7 @@ FLUSH PRIVILEGES;
 Go to <https://www.reddit.com/prefs/apps>, click **create another app**, choose type **script**, and set redirect URI to `http://localhost:8000`. Note the client ID (shown under the app name) and client secret.
 
 ### Step 3: Configure your environment
-Fill in the following for your `.env`:
+Copy `.env.example` to `.env` and fill in:
 
 ```env
 REDDIT_CLIENT_ID=<your client ID>
@@ -237,7 +231,6 @@ Dashboard at <http://localhost:8000>. Swagger UI at <http://localhost:8000/docs>
 |---|---|
 | Crawl a submission + auto-batch 50 more from the same subreddit | Paste a Reddit URL on the dashboard, click **Crawl** (1–3 min) |
 | View a crawled submission with nested comments | Click any submission title |
-| Crawl more posts from a subreddit | Open a subreddit page, click **Crawl 50 more posts** |
 | View an author's cross-Reddit history | Click any username → **Refresh from Reddit** |
 | Sort or paginate | Use the dropdown and page buttons |
 | Browse the API surface | Visit `/docs` for Swagger UI |

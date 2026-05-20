@@ -3,7 +3,7 @@ services:
     image: mysql:8.0
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_ROOT_PASSWORD: root1234
       MYSQL_DATABASE: reddit_crawler_db
       MYSQL_USER: reddit_user
       MYSQL_PASSWORD: root1234

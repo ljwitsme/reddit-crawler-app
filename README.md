@@ -32,8 +32,6 @@ Paste any Reddit submission URL and get a fully crawled view of the post, its co
 
 ## Features
 
-## Features
-
 | S/N | Feature | Explanation |
 |---|---|---|
 | 1 | Core Crawling | Accepts any Reddit submission URL and crawls the full post plus its complete comment tree using PRAW. Extracts submission title, ID, subreddit, comment IDs, parent IDs, authors, body content, SGT timestamps, and upvote counts. Nested comments are fully expanded via `replace_more(limit=None)`. Deleted and removed comments are flagged with an `is_deleted` column and styled distinctly in the UI rather than dropped. |
@@ -41,7 +39,8 @@ Paste any Reddit submission URL and get a fully crawled view of the post, its co
 | 3 | Author History Across Reddit | Every author has a clickable profile page. Clicking **Refresh from Reddit** fetches their 100 most recent comments from across all of Reddit via `redditor.comments.new(limit=100)`, not just one subreddit. |
 | 4 | User Exploration | Every author, subreddit, and submission is clickable, enabling free navigation through the data. |
 | 5 | UX Polish | Sortable submissions list, paginated views, collapsible comment threads with hidden-reply counts, "Expand all" / "Collapse all" controls, breadcrumb navigation, empty states, and loading spinners. |
-| 6 | Analytics Discussion | A written discussion of analytical approaches lives at [`docs/analytics.md`](docs/analytics.md), covering network analysis, sentiment and topics, temporal patterns, and toxicity detection. |
+| 6 | Analytics Discussion | A written discussion of analytical approaches lives at [`docs/analytics.md`](docs/analytics.md), covering sentiment analysis, topic modelling, user behaviour, engagement, temporal activity, and network graph analysis. |
+
 ---
 
 ## Quick Start (Docker)
@@ -72,11 +71,18 @@ docker compose up --build
 ### Step 4: Open the dashboard
 Visit <http://localhost:8000>
 
-### Stopping
+### Stop the app (keep data)
 ```bash
-docker compose down          # stop containers, keep data
-docker compose down -v       # stop containers and wipe the database volume
+docker compose down
 ```
+This stops the containers but preserves the database. Next time you run `docker compose up`, all your crawled data is still there.
+
+### Reset everything (wipe the database)
+```bash
+docker compose down -v
+docker compose up --build
+```
+The `-v` flag deletes the MySQL volume, giving you a completely empty database. Use this when you want a fresh start. After this, your dashboard will show all zeros until you crawl something new.
 
 ---
 
@@ -102,15 +108,10 @@ Title, author, subreddit, score, SGT timestamp, and the full comment thread — 
 
 Full reply trees rendered with visual indentation. Deleted comments preserved with greyed-italic styling.
 
-### 5. Collapse and pagination
-![Collapse and pagination](docs/screenshots/05_collapse_pagination.png)
+### 5. Cross-Reddit author exploration
+![Author profile](docs/screenshots/05_author_profile.png)
 
-Per-comment collapse toggles with hidden-reply counts; pagination at the bottom.
-
-### 6. Cross-Reddit author exploration
-![Author profile](docs/screenshots/06_author_profile.png)
-
-Author profile showing recent comments from multiple subreddits across Reddit.
+Author profile showing recent comments from multiple subreddits, fetched via PRAW's `redditor.comments.new(limit=100)`.
 
 ---
 
@@ -234,6 +235,16 @@ Dashboard at <http://localhost:8000>. Swagger UI at <http://localhost:8000/docs>
 | View an author's cross-Reddit history | Click any username → **Refresh from Reddit** |
 | Sort or paginate | Use the dropdown and page buttons |
 | Browse the API surface | Visit `/docs` for Swagger UI |
+| Reset the database | Run `docker compose down -v` then `docker compose up --build` |
+
+### Suggested test URLs
+
+The application works with any Reddit submission URL. Some examples for testing:
+
+- `https://www.reddit.com/r/singapore/comments/1t6tvf3/minimum_occupation_period_for_executive_condos/`
+- Any post from `r/AskReddit`, `r/news`, `r/explainlikeimfive`, etc.
+
+Each URL crawl adds to the database. The data accumulates across crawls until the volume is wiped with `docker compose down -v`.
 
 ---
 
@@ -295,20 +306,26 @@ Full schema: [`database/schema.sql`](database/schema.sql).
 
 **Error handling** maps PRAW exceptions to HTTP responses: 400 for invalid URLs, 404 for missing items, 403 for private subreddits, 502 for Reddit API issues. PRAW's built-in throttle handles rate limiting automatically.
 
+**Data persistence and accumulation.** The MySQL volume persists across container restarts (`docker compose down` keeps the data). Crawling additional URLs adds to the existing dataset rather than replacing it. To reset, use `docker compose down -v`.
+
 ---
 
 ## Analytics Discussion
 
-The discussion document at [`docs/analytics.md`](docs/analytics.md) covers analytical approaches for crawled Reddit data, framed for an internal-security audience. Nine common analytical areas are bundled into four themes:
+The discussion document at [`docs/analytics.md`](docs/analytics.md) outlines how the collected Reddit data can support future analytics. Once comments, authors, timestamps, upvote counts, and reply relationships are stored in a structured format, the data can be analysed to generate deeper insights into discussion content, user behaviour, engagement patterns, and interaction structures.
 
-| Theme | Methods & Tools |
+Six analytics areas are covered, each with their purpose, insights derived, value, and the technologies/frameworks/methodologies that would be applied:
+
+| Area | Methods & Tools |
 |---|---|
-| **Network and Community Analysis** | Graph construction, PageRank, community detection (Louvain/Leiden), coordination signals via HDBSCAN clustering |
-| **Content Analysis (Sentiment and Topics)** | VADER baseline, fine-tuned RoBERTa for production, BERTopic for topic modelling. Singlish flagged as a domain challenge |
-| **Temporal and Behavioural Analysis** | Activity patterns, anomaly detection, bot detection, change-point analysis |
-| **Toxicity and Integrity Analysis** | Perspective API / Detoxify for toxicity, hybrid rule-and-ML for spam, embedding similarity for narrative tracking |
+| **Sentiment Analysis** | Text preprocessing, VADER baseline, BERT-based models for context handling, Pandas for aggregation |
+| **Topic Modelling** | Text preprocessing, LDA with TF-IDF features, BERTopic for embedding-based clustering, Scikit-learn / Gensim |
+| **User Behaviour Analysis** | SQL aggregation queries on `author` and `parent_id`, reply count calculation, Pandas-based comparison |
+| **Engagement Analytics** | SQL ranking queries, engagement score (`upvotes + reply_count`), Pandas, Matplotlib / Plotly / Chart.js |
+| **Temporal Activity Analysis** | Timestamp conversion to SGT, SQL timestamp grouping, Pandas time-series resampling, visualisation libraries |
+| **Network Graph Analysis** | Parent-child relationships, NetworkX graph construction, degree centrality, PyVis / Gephi for visualisation |
 
-The document also covers engineering considerations on scale, schema readiness, and privacy.
+These analytics features are optional extensions to the core crawler. They demonstrate how the structured Reddit data captured by this application can support broader analytical use cases beyond data extraction.
 
 ---
 

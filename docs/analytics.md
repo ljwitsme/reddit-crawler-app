@@ -1,109 +1,214 @@
-# Analytics & Insights — Reddit Data
+# Use of Different Types of Analytics
 
-In this document I discuss the analytical approaches I would apply to data collected by this crawler, with an internal-security audience in mind. My focus is on coordinated behaviour, foreign narrative injection, social cohesion, and early signs of public discontent rather than commercial concerns like brand sentiment.
+## Overview
 
-The brief lists nine analytical areas. I focus on five that I see as most operationally relevant: network analysis, sentiment, topic modelling, temporal patterns, and toxicity and integrity. The remaining four (engagement, trend detection, user behaviour, community interaction) overlap with these and I would treat them as extensions of the same approaches.
+This section outlines how the Reddit data collected by the crawler can support future analytics. Once comments, authors, timestamps, upvote counts, and reply relationships are stored in a structured format, the data can be analysed to generate deeper insights into discussion content, user behaviour, engagement patterns, and interaction structures.
 
----
-
-## Network Graph Analysis
-
-**Insight.** I would treat Reddit replies as a directed graph where each comment connects the commenter to the parent author. From this graph, centrality scores show who is most influential, community detection groups users who interact often, and brokers are users who bridge otherwise separate communities. Tight groups of accounts behaving very similarly can suggest coordination.
-
-**Value.** Influential users and bridging accounts shape how narratives spread. Coordinated groups of accounts acting as one are a classic sign of foreign interference, and catching them early allows a measured response.
-
-**Tools.**
-- **Technologies:** I would use NetworkX for small-scale analysis, igraph for larger volumes, and Gephi for visualisation.
-- **Frameworks:** A graph-based view where each user is a node and each reply is a directed edge.
-- **Methodologies:** I would apply Louvain or Leiden algorithms for community detection, PageRank and betweenness centrality for influence ranking, and HDBSCAN clustering on per-author features (such as active hours and vocabulary patterns) to flag coordinated behaviour.
+The following sections focus on six analytics areas that are most relevant to the collected data: **sentiment analysis, topic modelling, user behaviour analysis, engagement analytics, temporal activity analysis, and network graph analysis**.
 
 ---
 
-## Sentiment Analysis
+## 1. Sentiment Analysis
 
-**Insight.** I would label each comment as positive, negative, or neutral, then group results by subreddit, time window, or author to see how mood changes across communities.
+### Purpose
 
-**Value.** A sudden rise in negative sentiment after a policy announcement is an early sign of public discontent. When the same event triggers very different sentiment across subreddits, I would treat that as a possible signal of coordinated framing.
+Sentiment analysis can be used to understand the overall tone of a Reddit discussion by classifying comments as positive, negative, or neutral.
 
-**Tools.**
-- **Technologies:** I would start with VADER (NLTK) as a quick baseline, then move to Hugging Face `transformers` for production models such as `cardiffnlp/twitter-roberta-base-sentiment` or BERT.
-- **Frameworks:** Lexicon-based scoring for fast baseline checks; transformer-based contextual classification for production use.
-- **Methodologies:** Polarity classification per comment, aggregated by subreddit, time window, or author. Cross-subreddit comparison to detect divergence. I would flag Singlish as a domain challenge — production models would need fine-tuning on locally labelled data.
+### Insights that can be derived
 
----
+- Whether users are generally reacting positively, negatively, or neutrally to a submission
+- Whether highly upvoted comments tend to express positive or negative views
+- Whether sentiment changes over time as more users join the discussion
+- Comments or discussion areas that show stronger emotional reactions
 
-## Topic Modelling
+### Value
 
-**Insight.** I would use topic modelling to find the themes that emerge from a body of comments without needing predefined categories. Comments are grouped by similarity, producing clusters that reflect what people are actually talking about.
+Reddit discussions can contain a large number of comments, making it difficult to manually understand the overall mood of a thread. Sentiment analysis provides a quick summary of the general reaction towards a topic and can help highlight areas where users may have strong concerns, support, or disagreement.
 
-**Value.** This lets me answer questions like "what is r/singapore discussing this week" without assuming the answer in advance. Combined with sentiment, it shows which topics dominate and how people feel about each one. Comparing topics across subreddits also highlights when an issue jumps from a niche community into wider discussion.
+### Technologies, frameworks, or methodologies
 
-**Tools.**
-- **Technologies:** I would use BERTopic (sentence-transformers + UMAP + HDBSCAN) for the modern approach, and gensim LDA as a classical baseline.
-- **Frameworks:** Unsupervised clustering of comments by semantic similarity to surface latent themes.
-- **Methodologies:** For LDA, I would do model selection across a range of topic counts (typically 2 to 20) using coherence and perplexity scoring. For BERTopic, embedding-based clustering with HDBSCAN to produce flexible, variable-size topic groups.
+- **Text preprocessing:** Comment text can first be cleaned by removing URLs, extra whitespace, and deleted or removed comments. This ensures that the sentiment model analyses meaningful user-generated text.
 
----
+- **VADER:** VADER can be used as a lightweight sentiment analysis method because it is designed for short, informal, social media-style text. Each Reddit comment can be assigned a positive, negative, neutral, and compound sentiment score.
 
-## Temporal & Behavioural Analysis
+- **BERT-based sentiment models:** For a more advanced extension, a transformer-based model can be used to better capture the context of words and phrases in comments. This may be useful for longer or more complex Reddit comments, although sarcasm and irony may still require careful handling.
 
-**Insight.** I would run time-series analysis at three levels. Overall volume per subreddit shows where attention is concentrated. Per-user activity patterns show each account's normal behaviour. Event-anchored bursts show how accounts and communities react to outside events.
-
-**Value.** A sudden spike in activity from a previously quiet account is a strong anomaly signal. Constant 24/7 posting with no weekly pattern often points to bots. I would also look at response timing to identify which accounts consistently lead breaking events versus simply follow, which is useful for spotting coordination.
-
-**Tools.**
-- **Technologies:** I would use Pandas for time-series work from the indexed `created_utc` column, statsmodels for STL decomposition, and the `ruptures` library for change-point detection.
-- **Frameworks:** Time-series decomposition that separates baseline from anomaly, and cross-correlation between accounts to find synchronised behaviour.
-- **Methodologies:** Per-user baselining, anomaly detection using z-scores and STL residuals, change-point detection for behavioural shifts, and pairwise correlation of activity over time.
+- **Pandas:** Pandas can be used after sentiment scoring to combine each comment's sentiment result with the fields collected by the crawler, such as comment ID, submission ID, author, timestamp, and upvote count. Using `groupby()` and aggregation, the system can calculate the overall sentiment distribution of a thread, track sentiment changes over time, compare sentiment across authors, and analyse whether highly upvoted comments are generally more positive, negative, or neutral.
 
 ---
 
-## Toxicity & Integrity Analysis
+## 2. Topic Modelling
 
-**Insight.** I would classify each comment for toxicity, spam, and similarity to known harmful narratives. Toxic content is flagged with supervised models, spam through a mix of rules and machine learning, and narratives through embedding similarity against a library of known patterns.
+### Purpose
 
-**Value.** Toxic communities are more vulnerable to radicalisation pipelines. When narratives that started on extremist or foreign-state platforms appear in Singapore-context subreddits, I would treat that crossover as a useful signal in itself — both the content and where it came from matter.
+Topic modelling can be used to identify the main themes being discussed within a Reddit submission or across multiple submissions from the same subreddit.
 
-**Tools.**
-- **Technologies:** I would use Google's Perspective API for cloud-based toxicity classification, or Detoxify for an offline option. sentence-transformers for narrative embeddings, and scikit-learn for the supervised spam classifier.
-- **Frameworks:** Multi-class classification (toxic, spam, narrative match) with a human review step before any action is taken.
-- **Methodologies:** Supervised toxicity classification, hybrid rule-and-ML spam detection (link ratio, account age, repeated content), and cosine-similarity matching of comments against a library of known harmful narratives.
+### Insights that can be derived
+
+- Common topics discussed within a thread
+- Repeated concerns, questions, complaints, or suggestions
+- Emerging themes across multiple submissions
+- Groups of comments that discuss similar issues
+
+### Value
+
+Reddit comments are unstructured text. Topic modelling helps convert large volumes of comments into meaningful themes, allowing users to understand what the discussion is mainly about without reading every comment individually. It is especially useful for posts with many comments or for analysing patterns across multiple submissions in the same subreddit.
+
+### Technologies, frameworks, or methodologies
+
+- **Text preprocessing:** Extract the stored `comment_body` values from the database and clean them by removing URLs, stop words, extra spaces, and deleted or removed comments. This prepares the Reddit comments for analysis by keeping only meaningful discussion content.
+
+- **Latent Dirichlet Allocation:** Convert the cleaned comments into TF-IDF or count-based features, then use LDA to group comments into topics. Each topic can then be reviewed based on its top keywords, and each comment can be assigned to the topic it most closely belongs to.
+
+- **BERTopic:** As a more advanced option, convert comments into sentence embeddings and group semantically similar comments together. This allows the model to detect comments discussing the same idea even if users use different wording.
+
+- **Scikit-learn or Gensim:** Use these libraries to perform the workflow, such as vectorising the cleaned comment text, training the topic model, extracting top keywords per topic, and assigning topic labels back to each comment record.
+
+---
+
+## 3. User Behaviour Analysis
+
+### Purpose
+
+User behaviour analysis can be used to understand how different authors participate in Reddit discussions.
+
+### Insights that can be derived
+
+- Most active users within a submission or subreddit
+- Users who frequently start or continue discussions
+- Users who receive higher upvotes or replies
+- Whether a discussion is driven by a few active users or many different participants
+
+### Value
+
+This provides a clearer view of participation patterns within a Reddit community. For example, it can show whether a thread is dominated by a small group of users or whether engagement is spread across many authors. It also supports the author exploration feature by giving context to an individual author's contribution style.
+
+### Technologies, frameworks, or methodologies
+
+- **SQL aggregation queries:** Use the stored `author`, `comment_id`, `parent_comment_id`, and `upvotes` fields to calculate author-level metrics. For example, SQL can group comments by `author` to calculate each user's total number of comments, total upvotes received, average upvotes per comment, and number of replies received.
+
+- **Reply count calculation:** Use the `parent_comment_id` field to count how many times each user's comments are replied to. This helps identify users who trigger further discussion, not just users who post frequently.
+
+- **Pandas:** Load the SQL results into a DataFrame to compare author-level metrics more easily. For example, Pandas can be used to sort users by activity level, calculate engagement averages, and separate highly active users from occasional commenters.
+
+---
+
+## 4. Engagement Analytics
+
+### Purpose
+
+Engagement analytics can be used to identify which submissions or comments receive the most attention from users.
+
+### Insights that can be derived
+
+- Most upvoted comments
+- Comments with the highest number of replies
+- Submissions with high discussion activity
+- Relationship between comment sentiment and upvote count
+- Authors whose comments consistently receive stronger engagement
+
+### Value
+
+Engagement signals can help identify comments that are influential, controversial, informative, or strongly supported by the community. Upvotes may indicate agreement or usefulness, while reply counts may suggest that a comment has triggered further discussion or debate.
+
+### Technologies, frameworks, or methodologies
+
+- **SQL ranking queries:** Use the stored `comment_id`, `submission_id`, and `upvotes` fields to rank comments by upvote count. This helps identify comments that received the strongest direct engagement from users.
+
+- **Engagement score:** Create a simple engagement score using available metrics, such as `upvotes + reply_count`. This allows comments to be ranked using both upvote-based engagement and reply-based engagement.
+
+- **Pandas:** Load the engagement results into a DataFrame to compare engagement across comments, authors, or submissions. For example, Pandas can be used to calculate top comments by engagement score, average upvotes per submission, and authors whose comments receive higher engagement.
+
+- **Matplotlib, Plotly, or Chart.js:** Use these tools to present engagement insights through ranked tables, bar charts, or dashboards. For example, the interface can display the top 10 most upvoted comments, comments with the most replies, or submissions with the highest total engagement.
+
+---
+
+## 5. Temporal Activity Analysis
+
+### Purpose
+
+Temporal activity analysis can be used to study how Reddit discussions develop over time.
+
+### Insights that can be derived
+
+- When users are most active
+- How quickly a submission receives comments after being posted
+- Whether discussion activity increases, decreases, or peaks at certain times
+- Comment volume by hour, day, or time period
+- Whether a post receives short-term attention or continues attracting discussion over a longer period
+
+### Value
+
+This helps explain the lifecycle of a Reddit discussion. Some posts may receive most of their engagement shortly after submission, while others may continue attracting comments over several days. Understanding activity patterns can help users identify peak discussion periods and how attention around a topic changes over time.
+
+### Technologies, frameworks, or methodologies
+
+- **Timestamp conversion:** Reddit timestamps can be converted to Singapore Time before analysis, which aligns with the project requirement to store date and time in SGT.
+
+- **SQL timestamp grouping:** SQL can be used to group comments by hour, day, or date range. This helps identify when discussion activity is highest.
+
+- **Pandas time-series grouping:** Pandas can be used to resample comment timestamps and analyse comment volume over time. This supports insights such as peak activity periods and how quickly a post gains traction.
+
+- **Matplotlib, Plotly, or Chart.js:** These tools can be used to visualise comment activity using line charts or bar charts, making it easier for users to understand how discussion activity changes over time.
+
+---
+
+## 6. Network Graph Analysis
+
+### Purpose
+
+Network graph analysis can be used to model Reddit discussions as a graph. Users or comments can be represented as nodes, while replies can be represented as edges. This supports community interaction analysis by showing how users and comments are connected within a discussion.
+
+### Insights that can be derived
+
+- Which users are central to a discussion
+- Which comments trigger the most follow-up replies
+- How conversation threads branch from the original submission
+- Whether interaction is concentrated around a few users or spread across many participants
+- Clusters of users who frequently interact with one another
+
+### Value
+
+Reddit discussions are not always linear. Comments often branch into nested conversations, making it difficult to understand the structure of the discussion from a simple list of comments. Network graph analysis helps visualise and measure these relationships, making it easier to identify central users, active discussion clusters, and key reply chains.
+
+This also avoids treating community interaction analysis as a completely separate area. Instead, network graph analysis can be positioned as the method used to analyse community interactions.
+
+### Technologies, frameworks, or methodologies
+
+- **Parent-child comment relationships:** The crawler stores parent comment IDs, which can be used to build reply relationships. Each comment can be connected to the comment it replies to, creating the structure needed for graph analysis.
+
+- **NetworkX:** NetworkX can be used to build a graph where users or comments are represented as nodes, and replies are represented as edges. This allows the system to analyse how Reddit discussions branch and how users interact.
+
+- **Graph metrics:** Metrics such as degree centrality can be used to identify highly connected users or comments. For example, a user with many incoming replies may be central to the discussion, while a comment with many child comments may have triggered significant follow-up discussion.
+
+- **PyVis or Gephi:** These tools can be used to visualise the reply network. This helps users explore community interaction patterns more intuitively instead of reading comments only as a flat list.
+
+---
+
+## Conclusion
+
+Overall, the collected Reddit data provides a strong foundation for future analytics. By applying sentiment analysis, topic modelling, user behaviour analysis, engagement analytics, temporal activity analysis, and network graph analysis, the application can generate deeper insights into Reddit discussions, user participation, and interaction patterns.
+
+These analytics features are optional extensions, but they show how the crawler can support broader analytical use cases beyond data extraction.
 
 ---
 
 ## References
 
-**Network analysis**
-- [NetworkX](https://networkx.org/) — Python library for graph analysis
-- [igraph](https://igraph.org/) — high-performance graph library
-- [Gephi](https://gephi.org/) — interactive graph visualisation
-- [Louvain method](https://en.wikipedia.org/wiki/Louvain_method) — community detection algorithm
-- [Leiden algorithm](https://www.nature.com/articles/s41598-019-41695-z) — refined community detection
-- [HDBSCAN](https://hdbscan.readthedocs.io/) — density-based clustering
+1. PRAW Documentation. *PRAW: The Python Reddit API Wrapper*. Used as a reference for Reddit API access through Python.  
+   https://praw.readthedocs.io/
 
-**Sentiment analysis**
-- [VADER](https://github.com/cjhutto/vaderSentiment) — lexicon-based sentiment analyser
-- [Hugging Face Transformers](https://huggingface.co/docs/transformers) — transformer model library
-- [cardiffnlp/twitter-roberta-base-sentiment](https://huggingface.co/cardiffnlp/twitter-roberta-base-sentiment) — social-media sentiment model
+2. Hutto, C. J., & Gilbert, E. (2014). *VADER: A Parsimonious Rule-Based Model for Sentiment Analysis of Social Media Text*. Used as a reference for social media sentiment analysis.  
+   https://ojs.aaai.org/index.php/ICWSM/article/view/14550
 
-**Topic modelling**
-- [BERTopic](https://maartengr.github.io/BERTopic/) — transformer-based topic modelling
-- [gensim](https://radimrehurek.com/gensim/) — classical topic modelling library
-- [sentence-transformers](https://www.sbert.net/) — sentence embedding models
-- [UMAP](https://umap-learn.readthedocs.io/) — dimensionality reduction
+3. BERTopic Documentation. *BERTopic: Topic Modeling with Transformers and c-TF-IDF*. Used as a reference for embedding-based topic modelling.  
+   https://maartengr.github.io/BERTopic/index.html
 
-**Temporal analysis**
-- [Pandas](https://pandas.pydata.org/) — data manipulation and time series
-- [statsmodels](https://www.statsmodels.org/) — statistical models including STL
-- [ruptures](https://centre-borelli.github.io/ruptures-docs/) — change-point detection
+4. NetworkX Documentation. *NetworkX: Network Analysis in Python*. Used as a reference for graph and network analysis.  
+   https://networkx.org/
 
-**Toxicity & integrity**
-- [Perspective API](https://perspectiveapi.com/) — toxicity classification (Google)
-- [Detoxify](https://github.com/unitaryai/detoxify) — offline toxicity classifier
-- [scikit-learn](https://scikit-learn.org/) — machine learning library
+5. NetworkX Documentation. *Degree Centrality*. Used as a reference for identifying highly connected nodes in a graph.  
+   https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.centrality.degree_centrality.html
 
-**Scale & infrastructure**
-- [DuckDB](https://duckdb.org/) — in-process analytical database
-- [ClickHouse](https://clickhouse.com/) — columnar analytical database
-- [Apache Spark](https://spark.apache.org/) — distributed compute framework
-- [Dask](https://www.dask.org/) — parallel computing in Python
+6. Pandas Documentation. *Time Series / Resampling*. Used as a reference for time-based grouping and temporal activity analysis.  
+   https://pandas.pydata.org/docs/user_guide/timeseries.html

@@ -111,13 +111,12 @@ Full reply trees rendered with visual indentation.
 ### 5. Cross-Reddit author exploration
 ![Author profile](docs/screenshots/05_author_profile.png)
 
-Author profile showing recent comments from multiple subreddits.
+Author profile populated with comments captured during regular crawls. The subreddit chips show which subreddits this author has commented in (based on what we've crawled so far).
 
-### 6. Subreddit chips after fetching author history
+### 6. Author history expanded across Reddit
 ![Subreddit listing](docs/screenshots/06_subreddits_listing_all.png)
 
-Clicking **Refresh from Reddit** fetches the author's 100 most recent comments across all of Reddit. The subreddit chips at the top reveal the full range of subreddits the author has commented in.
-
+After clicking **Refresh from Reddit**, the app fetches the author's 100 most recent comments from across all of Reddit via PRAW's `redditor.comments.new(limit=100)`. New subreddit chips appear, including subreddits we've never crawled — demonstrating that the author history feature reaches beyond our local dataset.
 
 ---
 

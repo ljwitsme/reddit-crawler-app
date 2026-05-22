@@ -94,45 +94,61 @@ def crawl_subreddit_batch_real(subreddit: str, limit: int, db: Session) -> list[
 
 def crawl_author_history_real(username: str, db: Session, limit: int = 100) -> int:
     """Fetch a user's recent comments across all of Reddit and store them.
-    Returns the count of comments stored."""
+    Returns the count of comments stored.
+
+    Handles the case where the author commented multiple times on the same
+    submission by deduplicating within the transaction.
+    """
     reddit = get_reddit_client()
     redditor = reddit.redditor(username)
 
+    # Track what we've already added in this transaction to avoid duplicate inserts.
+    seen_submission_ids: set[str] = set()
+    seen_comment_ids: set[str] = set()
     count = 0
+
     for c in redditor.comments.new(limit=limit):
-        row = db.get(Comment, c.id)
-        if row is None:
-            row = Comment(id=c.id)
-            db.add(row)
+        # Skip if we've already processed this exact comment in this batch
+        if c.id in seen_comment_ids:
+            continue
+        seen_comment_ids.add(c.id)
 
-        # We may not have the parent submission in our DB — store the
-        # submission ID anyway plus title/subreddit for display context
-        row.submission_id = c.submission.id
-        row.parent_id = _parse_parent_id(c.parent_id)
-        row.author = username
-        row.body = c.body
-        row.score = c.score
-        row.created_utc = epoch_to_utc(c.created_utc)
-        row.is_deleted = False
-        row.submission_title = str(c.submission.title)
-        row.submission_subreddit = str(c.subreddit)
+        # ---- Upsert the comment ----
+        comment_row = db.get(Comment, c.id)
+        if comment_row is None:
+            comment_row = Comment(id=c.id)
+            db.add(comment_row)
 
-        # Ensure a Submission row exists (placeholder if we haven't crawled the full post)
-        sub_row = db.get(Submission, c.submission.id)
-        if sub_row is None:
-            sub_row = Submission(
-                id=c.submission.id,
-                title=str(c.submission.title),
-                author=str(c.submission.author) if c.submission.author else None,
-                subreddit=str(c.subreddit),
-                selftext=None,
-                url=f"https://www.reddit.com{c.submission.permalink}",
-                score=c.submission.score,
-                num_comments=c.submission.num_comments,
-                created_utc=epoch_to_utc(c.submission.created_utc),
-                crawled_at=datetime.utcnow(),
-            )
-            db.add(sub_row)
+        comment_row.submission_id = c.submission.id
+        comment_row.parent_id = _parse_parent_id(c.parent_id)
+        comment_row.author = username
+        comment_row.body = c.body
+        comment_row.score = c.score
+        comment_row.created_utc = epoch_to_utc(c.created_utc)
+        comment_row.is_deleted = False
+        comment_row.submission_title = str(c.submission.title)
+        comment_row.submission_subreddit = str(c.subreddit)
+
+        # ---- Ensure a Submission row exists (placeholder if not yet crawled) ----
+        # Only attempt this once per submission per transaction.
+        if c.submission.id not in seen_submission_ids:
+            seen_submission_ids.add(c.submission.id)
+
+            sub_row = db.get(Submission, c.submission.id)
+            if sub_row is None:
+                sub_row = Submission(
+                    id=c.submission.id,
+                    title=str(c.submission.title),
+                    author=str(c.submission.author) if c.submission.author else None,
+                    subreddit=str(c.subreddit),
+                    selftext=None,
+                    url=f"https://www.reddit.com{c.submission.permalink}",
+                    score=c.submission.score,
+                    num_comments=c.submission.num_comments,
+                    created_utc=epoch_to_utc(c.submission.created_utc),
+                    crawled_at=datetime.utcnow(),
+                )
+                db.add(sub_row)
 
         count += 1
 

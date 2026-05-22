@@ -209,6 +209,9 @@ REDDIT_CLIENT_ID=<your client ID>
 REDDIT_CLIENT_SECRET=<your client secret>
 REDDIT_USER_AGENT=windows:reddit-crawler:v0.1 (by u/your_reddit_username)
 DATABASE_URL=mysql+pymysql://reddit_user:your_password@localhost:3306/reddit_crawler_db
+
+# Set to "false" to use real Reddit data via PRAW
+USE_MOCK=false
 ```
 
 ### Step 4: Install dependencies

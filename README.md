@@ -101,17 +101,17 @@ A single URL triggers the original crawl plus 50 more from the same subreddit, e
 ### 3. Submission detail with full metadata
 ![Submission detail](docs/screenshots/03_submission_detail.png)
 
-Title, author, subreddit, score, SGT timestamp, and the full comment thread — sorted by score, paginated 20 top-level per page.
+Title, author, subreddit, score, SGT timestamp, and the full comment thread.
 
 ### 4. Nested comments and deletion handling
 ![Nested and deleted comments](docs/screenshots/04_nested_and_deleted_comments.png)
 
-Full reply trees rendered with visual indentation. Deleted comments preserved with greyed-italic styling.
+Full reply trees rendered with visual indentation.
 
 ### 5. Cross-Reddit author exploration
 ![Author profile](docs/screenshots/05_author_profile.png)
 
-Author profile showing recent comments from multiple subreddits, fetched via PRAW's `redditor.comments.new(limit=100)`.
+Author profile showing recent comments from multiple subreddits.
 
 ---
 
@@ -312,18 +312,18 @@ Full schema: [`database/schema.sql`](database/schema.sql).
 
 ## Analytics Discussion
 
-The discussion document at [`docs/analytics.md`](docs/analytics.md) outlines how the collected Reddit data can support future analytics. Once comments, authors, timestamps, upvote counts, and reply relationships are stored in a structured format, the data can be analysed to generate deeper insights into discussion content, user behaviour, engagement patterns, and interaction structures.
+The discussion document at [`docs/analytics.md`](docs/analytics.md) outlines how the collected Reddit data can support future analytics. Once comments, authors, timestamps, scores, and reply relationships are stored in a structured format, the data can be analysed to generate deeper insights into discussion content, user behaviour, engagement patterns, and interaction structures.
 
 Six analytics areas are covered, each with their purpose, insights derived, value, and the technologies/frameworks/methodologies that would be applied:
 
 | Area | Methods & Tools |
 |---|---|
-| **Sentiment Analysis** | Text preprocessing, VADER baseline, BERT-based models for context handling, Pandas for aggregation |
-| **Topic Modelling** | Text preprocessing, LDA with TF-IDF features, BERTopic for embedding-based clustering, Scikit-learn / Gensim |
-| **User Behaviour Analysis** | SQL aggregation queries on `author` and `parent_id`, reply count calculation, Pandas-based comparison |
-| **Engagement Analytics** | SQL ranking queries, engagement score (`upvotes + reply_count`), Pandas, Matplotlib / Plotly / Chart.js |
-| **Temporal Activity Analysis** | Timestamp conversion to SGT, SQL timestamp grouping, Pandas time-series resampling, visualisation libraries |
-| **Network Graph Analysis** | Parent-child relationships, NetworkX graph construction, degree centrality, PyVis / Gephi for visualisation |
+| **Sentiment Analysis** | Text preprocessing using `comments.body`, VADER baseline, BERT-based models for context handling, Pandas for aggregation by `comments.submission_id`, `comments.author`, `comments.created_utc`, and `comments.score` |
+| **Topic Modelling** | Text preprocessing using `comments.body`, LDA with count-based features, TF-IDF keyword analysis, BERTopic for embedding-based clustering, Scikit-learn / Gensim |
+| **User Behaviour Analysis** | SQL aggregation queries on `comments.author`, `comments.id`, `comments.parent_id`, and `comments.score`; reply count derived by counting rows where another comment's `parent_id` references the comment |
+| **Engagement Analytics** | SQL ranking queries using `comments.score`, derived reply count from `comments.parent_id`, engagement score such as `score + reply_count`, Pandas, Matplotlib / Plotly / Chart.js |
+| **Temporal Activity Analysis** | Timestamp analysis using `comments.created_utc`, conversion to SGT for display, SQL timestamp grouping, Pandas time-series resampling, visualisation libraries |
+| **Network Graph Analysis** | Parent-child relationships using `comments.parent_id`, NetworkX graph construction, degree centrality, PyVis / Gephi for visualisation |
 
 These analytics features are optional extensions to the core crawler. They demonstrate how the structured Reddit data captured by this application can support broader analytical use cases beyond data extraction.
 

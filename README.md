@@ -242,9 +242,8 @@ Dashboard at <http://localhost:8000>. Swagger UI at <http://localhost:8000/docs>
 The application works with any Reddit submission URL. Some examples for testing:
 
 - `https://www.reddit.com/r/singapore/comments/1t6tvf3/minimum_occupation_period_for_executive_condos/`
-- Any post from `r/AskReddit`, `r/news`, `r/explainlikeimfive`, etc.
 
-Each URL crawl adds to the database. The data accumulates across crawls until the volume is wiped with `docker compose down -v`.
+The data accumulates across crawls until the volume is wiped with `docker compose down -v`.
 
 ---
 

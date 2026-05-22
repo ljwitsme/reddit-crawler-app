@@ -113,6 +113,12 @@ Full reply trees rendered with visual indentation.
 
 Author profile showing recent comments from multiple subreddits.
 
+### 6. Subreddit chips after fetching author history
+![Subreddit listing](docs/screenshots/06_subreddits_listing_all.png)
+
+Clicking **Refresh from Reddit** fetches the author's 100 most recent comments across all of Reddit. The subreddit chips at the top reveal the full range of subreddits the author has commented in.
+
+
 ---
 
 ## Architecture

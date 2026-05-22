@@ -1,4 +1,4 @@
-# Reddit Crawler — MHA ISD Assignment
+# Reddit Crawler — Assignment
 
 A web application that crawls Reddit submissions and comments via PRAW, stores them in MySQL, and presents them through an analyst-friendly dashboard.
 
@@ -242,6 +242,7 @@ Dashboard at <http://localhost:8000>. Swagger UI at <http://localhost:8000/docs>
 The application works with any Reddit submission URL. Some examples for testing:
 
 - `https://www.reddit.com/r/singapore/comments/1t6tvf3/minimum_occupation_period_for_executive_condos/`
+- `https://www.reddit.com/r/technology/comments/1tigi9j/ai_is_too_expensive_ai_is_as_it_stands_not/`
 
 The data accumulates across crawls until the volume is wiped with `docker compose down -v`.
 
@@ -363,7 +364,3 @@ AI assistants (Claude) were used to brainstorm ideas, explore approaches, and as
 
 #### Containerisation
 [![Docker](https://img.shields.io/badge/Docker-2496ED.svg?style=for-the-badge&logo=Docker&logoColor=white)](https://www.docker.com/)
-
-<br><br>
-
-[![Built for MHA ISD](https://img.shields.io/badge/Built%20for-MHA%20ISD%20%3C%2F%3E-orange?style=for-the-badge)](https://www.mha.gov.sg/)

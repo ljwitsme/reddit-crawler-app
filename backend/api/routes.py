@@ -63,6 +63,7 @@ def _serialize_summary(s: Submission) -> SubmissionSummary:
         score=s.score,
         num_comments=s.num_comments,
         created_sgt=utc_to_sgt_iso(s.created_utc),
+        crawled_at_sgt=utc_to_sgt_iso(s.crawled_at),
     )
 
 

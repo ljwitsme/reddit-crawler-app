@@ -108,6 +108,12 @@ async function loadSubmissions(page) {
 
 function renderRow(s) {
   const author = s.author ?? '[deleted]';
+
+  // When sorting by "newest crawled", show the crawl time.
+  // Otherwise, show the Reddit post creation time.
+  const timeToShow = currentSort === 'newest' ? s.crawled_at_sgt : s.created_sgt;
+  const timeLabel = currentSort === 'newest' ? 'crawled' : 'posted';
+
   return `
     <div class="sub-row">
       <div class="sub-score">
@@ -121,7 +127,7 @@ function renderRow(s) {
           <span class="dot">·</span>
           <a href="/author/${author}">u/${author}</a>
           <span class="dot">·</span>
-          <span>${s.created_sgt.replace('T', ' ').substring(0, 16)} SGT</span>
+          <span>${timeLabel} ${timeToShow.replace('T', ' ').substring(0, 16)} SGT</span>
         </div>
       </div>
       <div class="sub-comments">${s.num_comments.toLocaleString()} comments</div>

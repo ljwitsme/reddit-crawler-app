@@ -29,10 +29,11 @@ class SubmissionSummary(BaseModel):
     id: str
     title: str
     subreddit: str
-    author: Optional[str]
+    author: str | None
     score: int
     num_comments: int
     created_sgt: str
+    crawled_at_sgt: str
 
 
 class CommentWithContext(BaseModel):
@@ -61,3 +62,4 @@ class CrawlRequest(BaseModel):
 class SubredditCrawlRequest(BaseModel):
     subreddit: str
     limit: int = 50
+

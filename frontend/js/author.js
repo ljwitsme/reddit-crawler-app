@@ -73,6 +73,7 @@ function render(data) {
           <h2 class="panel-title">Active in subreddits</h2>
         </div>
         <button id="refresh-btn">Refresh from Reddit</button>
+        <p class="hint">Adds up to 100 recent comments from any subreddit on Reddit</p>
       </div>
       <div class="panel-body">${chips}</div>
     </div>

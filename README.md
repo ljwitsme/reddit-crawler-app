@@ -239,7 +239,6 @@ Dashboard at <http://localhost:8000>. Swagger UI at <http://localhost:8000/docs>
 | View a crawled submission with nested comments | Click any submission title |
 | View an author's cross-Reddit history | Click any username → **Refresh from Reddit** |
 | Sort or paginate | Use the dropdown and page buttons |
-| Browse the API surface | Visit `/docs` for Swagger UI |
 | Reset the database | Run `docker compose down -v` then `docker compose up --build` |
 
 ### Suggested test URLs
@@ -297,7 +296,7 @@ The database has three tables: `submissions`, `comments`, and `authors`. Each ro
 
 ### Indexes
 
-A composite index `ix_comments_submission_parent` on `(submission_id, parent_id)` accelerates the recursive tree query used to render comment threads. Individual indexes on `comments.author`, `comments.parent_id`, `submissions.subreddit`, and `submissions.created_utc` support fast analytical queries.
+Indexes are added to improve query performance. The composite index on `(submission_id, parent_id)` helps the application quickly retrieve and organise nested comments for each submission. Additional indexes on `comments.author`, `comments.parent_id`, `submissions.subreddit`, and `submissions.created_utc` help speed up common searches, filtering, sorting, and analytical queries.
 
 Full schema: [`database/schema.sql`](database/schema.sql).
 
@@ -319,7 +318,7 @@ Full schema: [`database/schema.sql`](database/schema.sql).
 
 The discussion document at [`docs/analytics.md`](docs/analytics.md) outlines how the collected Reddit data can support future analytics. Once comments, authors, timestamps, scores, and reply relationships are stored in a structured format, the data can be analysed to generate deeper insights into discussion content, user behaviour, engagement patterns, and interaction structures.
 
-Six analytics areas are covered, each with their purpose, insights derived, value, and the technologies/frameworks/methodologies that would be applied:
+Six analytics areas are covered, each with their purpose, insights derived value, and the technologies/frameworks/methodologies that would be applied:
 
 | Area | Methods & Tools |
 |---|---|

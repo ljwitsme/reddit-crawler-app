@@ -342,7 +342,7 @@ The application is fully containerised. The `Dockerfile` builds the FastAPI app 
 
 ## Use of AI Tools
 
-AI assistants (Claude) were used to brainstorm ideas, explore approaches, and assist with code generation. The candidate reviewed and verified all output to ensure the final implementation reflects the intended design and requirements.
+AI assistants (Claude, ChatGPT) were used to brainstorm ideas, explore approaches, and assist with code generation. The candidate reviewed and verified all output to ensure the final implementation reflects the intended design and requirements.
 
 ---
 
